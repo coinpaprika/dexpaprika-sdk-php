@@ -1,0 +1,29 @@
+{
+    "name": "coinpaprika/dexpaprika-sdk",
+    "description": "PHP client for the DexPaprika API",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "DexPaprika\\": "src/DexPaprika/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "DexPaprika\\Tests\\": "tests/DexPaprika/"
+        }
+    },
+    "require": {
+        "php": ">=7.4",
+        "guzzlehttp/guzzle": "^7.0",
+        "ext-json": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0",
+        "friendsofphp/php-cs-fixer": "^3.0"
+    },
+    "scripts": {
+        "test": "phpunit",
+        "cs-fix": "php-cs-fixer fix"
+    }
+} 

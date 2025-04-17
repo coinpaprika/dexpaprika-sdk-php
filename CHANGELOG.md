@@ -1,36 +1,27 @@
 # Changelog
-
-All notable changes to the DexPaprika SDK for Python will be documented in this file.
+All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - 2024-07-01
+## [1.0.0] - 2023-06-20
 
 ### Added
-- Retry with exponential backoff mechanism for API requests
-  - Automatic retry for connection errors, timeouts, and server errors (5xx)
-  - Configurable retry count and backoff times
-  - Default backoff times: 100ms, 500ms, 1s, and 5s with random jitter
-- TTL-based caching system
-  - Intelligent caching with different TTLs for different types of data
-  - Support for caching parameterized requests
-  - Skip cache option to force fresh data
-  - Cache clearing functionality
-- Example code demonstrating new features
-- Unit tests for caching and retry functionality
+- Added missing exception classes:
+  - ValidationException
+  - AuthenticationException
+  - RateLimitException
+  - ServerException
+  - ClientException
+- Retry with backoff functionality in BaseApi
+- Configurable retry options in Config class
+- PSR-6 compatible caching system
+  - CacheInterface for implementing custom caches
+  - FilesystemCache implementation 
+  - Cache support in Config and BaseApi
+  - Convenient setupCache method in Client class
 
-### Changed
-- Updated documentation to reflect new features
-- Improved error handling for API requests
-
-## [0.1.0] - 2024-06-01
-
-### Added
-- Initial release of the DexPaprika SDK
-- Support for all DexPaprika API endpoints
-- Type-safe response models using Pydantic
-- Parameter validation
-- API services: Networks, Pools, Tokens, DEXes, Search, Utils
-- Basic examples
-- Unit tests 
+### Enhanced
+- DexPaprikaApiException now includes error data from API responses
+- Fixed NotFoundException to use the correct namespace and include error data
+- Improved exception handling with detailed error information 
