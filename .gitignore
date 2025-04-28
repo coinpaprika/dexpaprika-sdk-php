@@ -22,7 +22,7 @@ Thumbs.db
 /dist/
 
 # Documentation files
-/SDK_UPDATE_INSTRUCTIONS.md
+SDK_UPDATE_INSTRUCTIONS.md
 /docs/
 openapi_old.yml 
 openapi_new.yml

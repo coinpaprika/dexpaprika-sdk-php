@@ -1,8 +1,9 @@
 {
     "name": "coinpaprika/dexpaprika-sdk",
-    "description": "PHP client for the DexPaprika API",
+    "description": "Official PHP SDK for the DexPaprika API. Access multi-chain DEX data, token prices, and liquidity pools with advanced caching and error handling.",
     "type": "library",
     "license": "MIT",
+    "keywords": ["dex", "dex-paprika", "sdk", "php", "blockchain", "crypto", "defi", "liquidity", "token", "exchange"],
     "autoload": {
         "psr-4": {
             "DexPaprika\\": "src/DexPaprika/"
@@ -25,5 +26,17 @@
     "scripts": {
         "test": "phpunit",
         "cs-fix": "php-cs-fixer fix"
-    }
+    },
+    "homepage": "https://github.com/coinpaprika/dexpaprika-sdk-php",
+    "support": {
+        "issues": "https://github.com/coinpaprika/dexpaprika-sdk-php/issues",
+        "source": "https://github.com/coinpaprika/dexpaprika-sdk-php"
+    },
+    "authors": [
+        {
+            "name": "CoinPaprika Team",
+            "email": "contact@coinpaprika.com",
+            "homepage": "https://dexpaprika.com"
+        }
+    ]
 } 

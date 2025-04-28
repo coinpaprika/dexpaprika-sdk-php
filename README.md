@@ -286,7 +286,15 @@ Run tests with PHPUnit:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
+
+## Contributing
+
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/coinpaprika/dexpaprika-sdk-php/issues) or submit a pull request.
+
+## Versioning
+
+This project adheres to [Semantic Versioning](https://semver.org/). For the list of available versions, see the [tags on this repository](https://github.com/coinpaprika/dexpaprika-sdk-php/tags).
 
 ## Support
 
