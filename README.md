@@ -2,6 +2,22 @@
 
 A PHP SDK for interacting with the DexPaprika API, providing access to cryptocurrency DEX data, token information, liquidity pools, and market statistics.
 
+## ⚠️ Breaking Changes in v1.3.0
+
+**IMPORTANT**: The global `/pools` endpoint has been deprecated in DexPaprika API v1.3.0. All pool operations now require a network parameter.
+
+### Migration Required
+```php
+// ❌ OLD - No longer works
+$pools = $client->pools->getTopPools(['limit' => 10]);
+
+// ✅ NEW - Network-specific approach
+$ethereumPools = $client->pools->getNetworkPools('ethereum', ['limit' => 10]);
+$solanaPools = $client->pools->getNetworkPools('solana', ['limit' => 10]);
+```
+
+**See the [Migration Guide](examples/migration_guide.php) and [CHANGELOG](CHANGELOG.md) for complete details.**
+
 ## Features
 
 - Simple and intuitive PHP interface to all DexPaprika API endpoints
@@ -47,8 +63,9 @@ try {
     // Get global statistics
     $stats = $client->stats->getStats();
     
-    // Get top pools by volume
-    $topPools = $client->pools->getTopPools(['limit' => 10]);
+    // Get top pools by network (NEW in v1.3.0)
+    $ethereumPools = $client->pools->getNetworkPools('ethereum', ['limit' => 10]);
+    $solanaPools = $client->pools->getNetworkPools('solana', ['limit' => 10]);
     
     // Search for tokens
     $searchResults = $client->search->search('bitcoin');
@@ -163,28 +180,23 @@ $dexes = $client->dexes->getNetworkDexes('ethereum', ['limit' => 10]);
 ### Pools
 
 ```php
-// Get top pools across all networks
-$topPools = $client->pools->getTopPools([
-    'limit' => 10,
-    'orderBy' => 'volume_usd',
-    'sort' => 'desc'
-]);
-
-// Get pools on a specific network
+// Get pools on a specific network (UPDATED in v1.3.0)
 $ethPools = $client->pools->getNetworkPools('ethereum', ['limit' => 20]);
+$solanaPools = $client->pools->getNetworkPools('solana', ['limit' => 20]);
 
 // Get pools on a specific DEX
-$uniswapPools = $client->pools->getDexPools('ethereum', 'uniswap_v3', ['limit' => 15]);
+$uniswapPools = $client->dexes->getDexPools('ethereum', 'uniswap_v3', ['limit' => 15]);
 
 // Get detailed information about a pool
 $poolDetails = $client->pools->getPoolDetails('ethereum', '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640');
 
 // Get historical OHLCV data for a pool
-$ohlcvData = $client->pools->getPoolOHLCV('ethereum', '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640', [
-    'start' => '2023-01-01',
-    'end' => '2023-01-07',
-    'interval' => '24h'
-]);
+$ohlcvData = $client->pools->getPoolOHLCV('ethereum', '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640', 
+    '2023-01-01', [
+        'end' => '2023-01-07',
+        'interval' => '24h'
+    ]
+);
 
 // Get transactions for a pool
 $transactions = $client->pools->getPoolTransactions('ethereum', '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640', ['limit' => 20]);
@@ -199,8 +211,11 @@ $tokenDetails = $client->tokens->getTokenDetails('ethereum', '0xc02aaa39b223fe8d
 // Find token by name or address
 $token = $client->tokens->findToken('ethereum', 'WETH');
 
-// Get pools containing a specific token
-$tokenPools = $client->tokens->getTokenPools('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', ['limit' => 20]);
+// Get pools containing a specific token (UPDATED in v1.3.0)
+$tokenPools = $client->tokens->getTokenPools('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', [
+    'limit' => 20,
+    'reorder' => true  // NEW: Reorder pools so the token becomes the primary token for metrics
+]);
 ```
 
 ### Search
@@ -235,12 +250,30 @@ The SDK throws different types of exceptions:
 ```php
 use DexPaprika\Exception\DexPaprikaApiException;
 use DexPaprika\Exception\NotFoundException;
+use DexPaprika\Exception\DeprecationException;
+use DexPaprika\Exception\ValidationException;
 use DexPaprika\Exception\RateLimitException;
 use DexPaprika\Exception\ServerException;
 use DexPaprika\Exception\NetworkException;
 
 try {
-    $token = $client->tokens->getTokenDetails('ethereum', '0x0000000000000000000000000000000000000000');
+    // This will throw DeprecationException in v1.3.0+
+    $pools = $client->pools->getTopPools();
+} catch (DeprecationException $e) {
+    // Handle deprecated endpoint usage
+    echo "Deprecated endpoint: " . $e->getMessage();
+    
+    // Get migration guidance from error data
+    $errorData = $e->getErrorData();
+    if (isset($errorData['migration_examples'])) {
+        echo "Migration examples:\n";
+        foreach ($errorData['migration_examples'] as $example) {
+            echo "  {$example}\n";
+        }
+    }
+} catch (ValidationException $e) {
+    // Handle parameter validation errors
+    echo "Invalid parameters: " . $e->getMessage();
 } catch (NotFoundException $e) {
     // Handle not found error
     echo "Resource not found: " . $e->getMessage();

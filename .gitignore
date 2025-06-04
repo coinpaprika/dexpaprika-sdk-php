@@ -45,3 +45,12 @@ openapi_new.yml
 # Backup files
 *~
 *.bak
+
+# Development and testing files
+/test_output/
+*.local.php
+.phpunit.result.cache
+
+# Coverage reports
+/coverage/
+/clover.xml

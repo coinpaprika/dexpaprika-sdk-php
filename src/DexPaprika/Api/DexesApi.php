@@ -13,7 +13,7 @@ class DexesApi extends BaseApi
      * @param string $networkId The network ID (e.g., 'ethereum', 'solana')
      * @param array<string, mixed> $options Additional options
      *                            - int $page: Page number (default: 0)
-     *                            - int $limit: Number of items per page (default: 10)
+     *                            - int $limit: Number of items per page (default: 10, max: 100)
      *                            - string $sort: Sort order ('asc' or 'desc')
      *                            - string $orderBy: Field to order by
      * @return array<string, mixed>|object The response containing DEXes and pagination info
@@ -59,18 +59,30 @@ class DexesApi extends BaseApi
      * @param string $dexId DEX identifier 
      * @param array<string, mixed> $options Additional options:
      *  - int $page: Page number for pagination (default: 0)
-     *  - int $limit: Number of items per page (default: 10)
+     *  - int $limit: Number of items per page (default: 10, max: 100)
      *  - string $orderBy: Field to order by (default: 'volume_usd')
      *  - string $sort: Sort order (default: 'desc')
      *  - bool $asObject: Whether to return the response as an object (default: false)
      * @return array<string, mixed>|object List of pools on the DEX
+     * @throws ValidationException If parameters are invalid
      */
     public function getDexPools(string $networkId, string $dexId, array $options = [])
     {
-        $params = [
-            'network' => $networkId,
-            'dex' => $dexId,
-        ];
+        // Validate required parameters
+        if (empty($networkId) || trim($networkId) === '') {
+            throw new \DexPaprika\Exception\ValidationException('Network ID is required and cannot be empty');
+        }
+        
+        if (empty($dexId) || trim($dexId) === '') {
+            throw new \DexPaprika\Exception\ValidationException('DEX ID is required and cannot be empty');
+        }
+        
+        // Validate limit parameter
+        if (isset($options['limit']) && ($options['limit'] < 1 || $options['limit'] > 100)) {
+            throw new \DexPaprika\Exception\ValidationException('Limit must be between 1 and 100');
+        }
+
+        $params = [];
 
         if (isset($options['page'])) {
             $params['page'] = $options['page'];
@@ -81,7 +93,7 @@ class DexesApi extends BaseApi
         }
 
         if (isset($options['orderBy'])) {
-            $params['orderBy'] = $options['orderBy'];
+            $params['order_by'] = $options['orderBy'];
         }
 
         if (isset($options['sort'])) {
@@ -102,7 +114,7 @@ class DexesApi extends BaseApi
      * @param string $dexId DEX identifier
      * @param array<string, mixed> $options Additional options:
      *  - int $page: Page number for pagination (default: 0)
-     *  - int $limit: Number of items per page (default: 10)
+     *  - int $limit: Number of items per page (default: 10, max: 100)
      *  - string $orderBy: Field to order by (default: 'volume_usd')
      *  - string $sort: Sort order (default: 'desc')
      *  - bool $asObject: Whether to return the response as an object (default: false)
@@ -121,7 +133,7 @@ class DexesApi extends BaseApi
      * @param callable $callback Function to call for each page of pools: function(array|object $pools, int $page): bool
      *                          Return false from the callback to stop pagination
      * @param array<string, mixed> $options Additional options:
-     *  - int $limit: Number of items per page (default: 10)
+     *  - int $limit: Number of items per page (default: 10, max: 100)
      *  - string $orderBy: Field to order by (default: 'volume_usd')
      *  - string $sort: Sort order (default: 'desc')
      *  - int $maxPages: Maximum number of pages to fetch (default: 10, use 0 for unlimited)
