@@ -42,7 +42,7 @@ class PaginatorTest extends TestCase
             ],
         ]);
         
-        $paginator = new Paginator($mockPoolsApi, 'getTopPools', ['limit' => 2]);
+        $paginator = new Paginator($mockPoolsApi, 'getNetworkPools', ['networkId' => 'ethereum', 'limit' => 2]);
         
         // First page
         $result1 = $paginator->getNextPage();
@@ -101,7 +101,7 @@ class PaginatorTest extends TestCase
             ],
         ]);
         
-        $paginator = new Paginator($mockPoolsApi, 'getTopPools', ['limit' => 1]);
+        $paginator = new Paginator($mockPoolsApi, 'getNetworkPools', ['networkId' => 'ethereum', 'limit' => 1]);
         
         $allResults = $paginator->getAllResults();
         
@@ -139,7 +139,7 @@ class PaginatorTest extends TestCase
             ],
         ]);
         
-        $paginator = new Paginator($mockPoolsApi, 'getTopPools', ['limit' => 1]);
+        $paginator = new Paginator($mockPoolsApi, 'getNetworkPools', ['networkId' => 'ethereum', 'limit' => 1]);
         
         $allResults = $paginator->getAllResults(2); // Get only 2 pages
         
@@ -176,7 +176,7 @@ class PaginatorTest extends TestCase
             ],
         ]);
         
-        $paginator = new Paginator($mockPoolsApi, 'getTopPools', ['limit' => 1]);
+        $paginator = new Paginator($mockPoolsApi, 'getNetworkPools', ['networkId' => 'ethereum', 'limit' => 1]);
         
         $callbackResults = [];
         $callback = function ($result, $page) use (&$callbackResults) {

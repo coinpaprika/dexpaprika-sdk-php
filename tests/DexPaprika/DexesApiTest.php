@@ -131,7 +131,7 @@ class DexesApiTest extends TestCase
             ]
         ];
 
-        // Instead of using the actual implementation, we'll mock the get method
+        // Create a mock for the DexesApi that only mocks the get method
         $mockApi = $this->getMockBuilder(DexesApi::class)
             ->setConstructorArgs([$this->createMockClient([])])
             ->onlyMethods(['get'])
@@ -143,8 +143,6 @@ class DexesApiTest extends TestCase
             ->with(
                 $this->equalTo('/networks/ethereum/dexes/uniswap_v3/pools'),
                 $this->equalTo([
-                    'network' => 'ethereum',
-                    'dex' => 'uniswap_v3',
                     'page' => 0,
                     'limit' => 10
                 ])

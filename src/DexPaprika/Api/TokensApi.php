@@ -61,8 +61,9 @@ class TokensApi extends BaseApi
      * @param string $tokenAddress Token address or identifier
      * @param array<string, mixed> $options Additional options:
      *  - string $address: Filter pools that contain this additional token address
+     *  - bool $reorder: If true, reorders the pool so that the token becomes the primary token for all metrics (default: false)
      *  - int $page: Page number for pagination (default: 0)
-     *  - int $limit: Number of items per page (default: 10)
+     *  - int $limit: Number of items per page (default: 10, max: 100)
      *  - string $orderBy: Field to order by (default: 'volume_usd')
      *  - string $sort: Sort order (default: 'desc')
      *  - bool $asObject: Whether to return the response as an object (default: false)
@@ -76,6 +77,10 @@ class TokensApi extends BaseApi
             $params['address'] = $options['address'];
         }
 
+        if (isset($options['reorder'])) {
+            $params['reorder'] = $options['reorder'];
+        }
+
         if (isset($options['page'])) {
             $params['page'] = $options['page'];
         }
@@ -85,14 +90,14 @@ class TokensApi extends BaseApi
         }
 
         if (isset($options['orderBy'])) {
-            $params['orderBy'] = $options['orderBy'];
+            $params['order_by'] = $options['orderBy'];
         }
 
         if (isset($options['sort'])) {
             $params['sort'] = $options['sort'];
         }
 
-        $response = $this->get("/tokens/$networkId/$tokenAddress/pools", $params);
+        $response = $this->get("/networks/{$networkId}/tokens/{$tokenAddress}/pools", $params);
         
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
@@ -104,8 +109,9 @@ class TokensApi extends BaseApi
      * @param string $tokenAddress Token address or identifier
      * @param array<string, mixed> $options Additional options:
      *  - string $address: Filter pools that contain this additional token address
+     *  - bool $reorder: If true, reorders the pool so that the token becomes the primary token for all metrics (default: false)
      *  - int $page: Page number for pagination (default: 0)
-     *  - int $limit: Number of items per page (default: 10)
+     *  - int $limit: Number of items per page (default: 10, max: 100)
      *  - string $orderBy: Field to order by (default: 'volume_usd')
      *  - string $sort: Sort order (default: 'desc')
      *  - bool $asObject: Whether to return the response as an object (default: false)
@@ -157,7 +163,8 @@ class TokensApi extends BaseApi
      *                          Return false from the callback to stop pagination
      * @param array<string, mixed> $options Additional options:
      *  - string $address: Filter pools that contain this additional token address
-     *  - int $limit: Number of items per page (default: 10)
+     *  - bool $reorder: If true, reorders the pool so that the token becomes the primary token for all metrics (default: false)
+     *  - int $limit: Number of items per page (default: 10, max: 100)
      *  - string $orderBy: Field to order by (default: 'volume_usd')
      *  - string $sort: Sort order (default: 'desc')
      *  - int $maxPages: Maximum number of pages to fetch (default: 10, use 0 for unlimited)

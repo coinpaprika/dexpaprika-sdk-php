@@ -7,6 +7,8 @@ namespace DexPaprika\Tests;
 use DexPaprika\Api\PoolsApi;
 use DexPaprika\Exception\DexPaprikaApiException;
 use DexPaprika\Exception\NotFoundException;
+use DexPaprika\Exception\DeprecationException;
+use DexPaprika\Exception\ValidationException;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
@@ -22,94 +24,58 @@ class PoolsApiTest extends TestCase
         return new Client(['handler' => $handlerStack]);
     }
 
-    public function testGetTopPools(): void
+    public function testGetTopPoolsThrowsDeprecationException(): void
     {
-        // Mock the API response for getTopPools
-        $expectedResponse = [
-            'pools' => [
-                ['id' => 'eth_wbtc', 'name' => 'ETH/WBTC'],
-                ['id' => 'eth_usdc', 'name' => 'ETH/USDC']
-            ],
-            'page_info' => [
-                'page' => 0,
-                'total_pages' => 5,
-                'items_on_page' => 2,
-                'total_items' => 10
-            ]
-        ];
+        // Create a real PoolsApi instance (not mocked) to test the actual deprecation behavior
+        $api = new PoolsApi($this->createMockClient([]));
 
-        // Create a mock for the PoolsApi that only mocks the get method
-        $mockApi = $this->getMockBuilder(PoolsApi::class)
-            ->setConstructorArgs([$this->createMockClient([])])
-            ->onlyMethods(['get'])
-            ->getMock();
-
-        // Set up expectations for the mocked get method
-        $mockApi->expects($this->any())
-            ->method('get')
-            ->with(
-                $this->equalTo('/pools'),
-                $this->equalTo([
-                    'page' => 0,
-                    'limit' => 10
-                ])
-            )
-            ->willReturn($expectedResponse);
-
-        // Call the method with test parameters
-        $result = $mockApi->getTopPools([
-            'page' => 0,
-            'limit' => 10
-        ]);
-
-        // Assert the response matches our expectations
-        $this->assertEquals($expectedResponse, $result);
-
-        // Test with asObject = true
-        $result = $mockApi->getTopPools([
-            'page' => 0,
-            'limit' => 10,
-            'asObject' => true
-        ]);
-
-        // When testing with transformation, we need to make sure the 
-        // transformResponse method is correctly working
-        $this->assertIsObject($result);
-        $this->assertIsArray($result->pools);
-        $this->assertEquals(2, count($result->pools));
+        // Test that getTopPools now throws DeprecationException
+        $this->expectException(DeprecationException::class);
+        $this->expectExceptionCode(410);
+        $this->expectExceptionMessage('The global /pools endpoint has been deprecated and returns 410 Gone');
+        
+        $api->getTopPools(['limit' => 10]);
     }
 
-    public function testListTopPools(): void
+    public function testGetTopPoolsExceptionContainsMigrationGuidance(): void
     {
-        // Mock the API response for listTopPools
-        $expectedResponse = [
-            'pools' => [
-                ['id' => 'eth_wbtc', 'name' => 'ETH/WBTC'],
-                ['id' => 'eth_usdc', 'name' => 'ETH/USDC']
-            ],
-            'page_info' => [
-                'page' => 0,
-                'total_pages' => 5,
-                'items_on_page' => 2,
-                'total_items' => 10
-            ]
-        ];
+        // Create a real PoolsApi instance to test exception details
+        $api = new PoolsApi($this->createMockClient([]));
 
-        // Use partial mock to only mock the getTopPools method
-        $mockApi = $this->getMockBuilder(PoolsApi::class)
-            ->setConstructorArgs([$this->createMockClient([])])
-            ->onlyMethods(['getTopPools'])
-            ->getMock();
+        try {
+            $api->getTopPools(['limit' => 10]);
+            $this->fail('Expected DeprecationException was not thrown');
+        } catch (DeprecationException $e) {
+            // Check that the exception contains helpful migration information
+            $errorData = $e->getErrorData();
+            
+            $this->assertIsArray($errorData);
+            $this->assertArrayHasKey('migration_examples', $errorData);
+            $this->assertArrayHasKey('supported_networks', $errorData);
+            
+            // Check that migration examples contain expected content
+            $migrationExamples = $errorData['migration_examples'];
+            $this->assertIsArray($migrationExamples);
+            $this->assertGreaterThan(0, count($migrationExamples));
+            
+            // Check that supported networks contains expected networks
+            $supportedNetworks = $errorData['supported_networks'];
+            $this->assertIsArray($supportedNetworks);
+            $this->assertContains('ethereum', $supportedNetworks);
+            $this->assertContains('solana', $supportedNetworks);
+        }
+    }
 
-        // Set up expectations for the mocked getTopPools method
-        $mockApi->expects($this->once())
-            ->method('getTopPools')
-            ->with($this->equalTo(['limit' => 10]))
-            ->willReturn($expectedResponse);
+    public function testListTopPoolsThrowsDeprecationException(): void
+    {
+        // Create a real PoolsApi instance to test the actual deprecation behavior
+        $api = new PoolsApi($this->createMockClient([]));
 
-        // Call listTopPools and verify it correctly uses getTopPools
-        $result = $mockApi->listTopPools(['limit' => 10]);
-        $this->assertEquals($expectedResponse, $result);
+        // Test that listTopPools also throws DeprecationException (since it calls getTopPools)
+        $this->expectException(DeprecationException::class);
+        $this->expectExceptionCode(410);
+        
+        $api->listTopPools(['limit' => 10]);
     }
 
     public function testGetNetworkPools(): void
@@ -140,7 +106,6 @@ class PoolsApiTest extends TestCase
             ->with(
                 $this->equalTo('/networks/ethereum/pools'),
                 $this->equalTo([
-                    'network' => 'ethereum',
                     'page' => 0,
                     'limit' => 10
                 ])
@@ -167,6 +132,28 @@ class PoolsApiTest extends TestCase
         $this->assertIsObject($result);
         $this->assertIsArray($result->pools);
         $this->assertEquals(2, count($result->pools));
+    }
+
+    public function testGetNetworkPoolsValidatesNetworkId(): void
+    {
+        $api = new PoolsApi($this->createMockClient([]));
+
+        // Test empty network ID
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Network ID is required and cannot be empty');
+        
+        $api->getNetworkPools('', ['limit' => 10]);
+    }
+
+    public function testGetNetworkPoolsValidatesLimitParameter(): void
+    {
+        $api = new PoolsApi($this->createMockClient([]));
+
+        // Test limit too high
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Limit must be between 1 and 100');
+        
+        $api->getNetworkPools('ethereum', ['limit' => 150]);
     }
 
     public function testListNetworkPools(): void
@@ -240,8 +227,6 @@ class PoolsApiTest extends TestCase
             ->with(
                 $this->equalTo('/networks/ethereum/pools/0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640'),
                 $this->equalTo([
-                    'network' => 'ethereum',
-                    'poolAddress' => '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640',
                     'inversed' => false
                 ])
             )
@@ -303,8 +288,6 @@ class PoolsApiTest extends TestCase
             ->with(
                 $this->equalTo('/networks/ethereum/pools/0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640/ohlcv'),
                 $this->equalTo([
-                    'network' => 'ethereum',
-                    'poolAddress' => '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640',
                     'start' => '2021-01-01',
                     'end' => '2021-01-02',
                     'interval' => '1d'
@@ -388,8 +371,6 @@ class PoolsApiTest extends TestCase
             ->with(
                 $this->equalTo('/networks/ethereum/pools/0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640/transactions'),
                 $this->equalTo([
-                    'network' => 'ethereum',
-                    'poolAddress' => '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640',
                     'page' => 0,
                     'limit' => 10
                 ])
@@ -422,16 +403,14 @@ class PoolsApiTest extends TestCase
     {
         // Mock the API response for findPool
         $expectedResponse = [
-            'pool' => [
-                'id' => 'eth_wbtc',
-                'name' => 'ETH/WBTC',
-                'address' => '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640',
-                'network' => 'ethereum',
-                'dex' => 'uniswap_v3'
-            ]
+            'id' => 'eth_wbtc',
+            'name' => 'ETH/WBTC',
+            'address' => '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640',
+            'network' => 'ethereum',
+            'dex' => 'uniswap_v3'
         ];
 
-        // Use partial mock to only mock the getPoolDetails method since findPool uses it
+        // Use partial mock to only mock the getPoolDetails method
         $mockApi = $this->getMockBuilder(PoolsApi::class)
             ->setConstructorArgs([$this->createMockClient([])])
             ->onlyMethods(['getPoolDetails'])
@@ -442,50 +421,14 @@ class PoolsApiTest extends TestCase
             ->method('getPoolDetails')
             ->with(
                 $this->equalTo('ethereum'),
-                $this->equalTo('ETH/WBTC'),
+                $this->equalTo('0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640'),
                 $this->equalTo(['asObject' => false])
             )
             ->willReturn($expectedResponse);
 
-        // Call the method with test parameters
-        $result = $mockApi->findPool('ethereum', 'ETH/WBTC');
-
-        // Assert the response matches our expectations
+        // Call findPool and verify it correctly uses getPoolDetails
+        $result = $mockApi->findPool('ethereum', '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640');
         $this->assertEquals($expectedResponse, $result);
-
-        // Mock getPoolDetails again for asObject = true
-        $mockApi = $this->getMockBuilder(PoolsApi::class)
-            ->setConstructorArgs([$this->createMockClient([])])
-            ->onlyMethods(['getPoolDetails'])
-            ->getMock();
-            
-        // For the asObject test, convert to a proper nested object structure
-        $objectResponse = (object) [
-            'pool' => (object) [
-                'id' => 'eth_wbtc',
-                'name' => 'ETH/WBTC',
-                'address' => '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640',
-                'network' => 'ethereum',
-                'dex' => 'uniswap_v3'
-            ]
-        ];
-            
-        $mockApi->expects($this->once())
-            ->method('getPoolDetails')
-            ->with(
-                $this->equalTo('ethereum'),
-                $this->equalTo('ETH/WBTC'),
-                $this->equalTo(['asObject' => true])
-            )
-            ->willReturn($objectResponse);
-            
-        // Test with asObject = true
-        $result = $mockApi->findPool('ethereum', 'ETH/WBTC', true);
-
-        // Verify transformation to object
-        $this->assertIsObject($result);
-        $this->assertIsObject($result->pool);
-        $this->assertEquals('eth_wbtc', $result->pool->id);
     }
 
     public function testFindPoolThrowsExceptionWhenNotFound(): void

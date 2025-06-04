@@ -20,6 +20,7 @@ use DexPaprika\Exception\RateLimitException;
 use DexPaprika\Exception\NotFoundException;
 use DexPaprika\Exception\ServerException;
 use DexPaprika\Exception\ClientException;
+use DexPaprika\Exception\DeprecationException;
 
 abstract class BaseApi
 {
@@ -387,6 +388,7 @@ abstract class BaseApi
         return match (true) {
             $statusCode === 404 => new NotFoundException($message, $statusCode, $errorData),
             $statusCode === 401 => new AuthenticationException($message, $statusCode, $errorData),
+            $statusCode === 410 => new DeprecationException($message, $statusCode, $errorData),
             $statusCode === 429 => new RateLimitException($message, $statusCode, $errorData),
             $statusCode >= 500 => new ServerException($message, $statusCode, $errorData),
             $statusCode >= 400 => new ClientException($message, $statusCode, $errorData),
