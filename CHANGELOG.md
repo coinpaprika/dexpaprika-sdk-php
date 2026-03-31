@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-03-31
+
+### Added
+- **Pool filtering**: `PoolsApi::filterPools()` method for advanced pool filtering by volume, liquidity, transactions, and creation date
+- **Top tokens**: `TokensApi::getTopTokens()` method for discovering top tokens on a network ranked by volume, price, liquidity, or other metrics
+- **Token filtering**: `TokensApi::filterTokens()` method for filtering tokens by volume, liquidity, FDV, transactions, and creation date
+- **Batch prices**: `TokensApi::getMultiPrices()` method for getting prices of up to 10 tokens in a single request
+- Tests for all new endpoints
+
+### Changed
+- Updated SDK VERSION constant to 1.1.0
+
 ## [1.3.0] - 2025-01-27
 
 ### ⚠️ BREAKING CHANGES
