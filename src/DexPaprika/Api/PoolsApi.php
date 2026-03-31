@@ -251,6 +251,83 @@ class PoolsApi extends BaseApi
     }
 
     /**
+     * Filter pools on a network by volume, liquidity, transactions, and creation date
+     *
+     * @param string $networkId Network ID (e.g., ethereum, solana)
+     * @param array<string, mixed> $options Filter options:
+     *  - int $page: Page number for pagination (1-indexed, default: 1)
+     *  - int $limit: Number of items per page (default: 10, max: 100)
+     *  - string $sortBy: Field to sort by (e.g., 'volume_24h', 'liquidity_usd', 'txns_24h')
+     *  - string $sortDir: Sort direction ('asc' or 'desc', default: 'desc')
+     *  - float $volume24hMin: Minimum 24h volume in USD
+     *  - float $volume24hMax: Maximum 24h volume in USD
+     *  - float $volume7dMin: Minimum 7d volume in USD
+     *  - float $volume7dMax: Maximum 7d volume in USD
+     *  - float $liquidityUsdMin: Minimum liquidity in USD
+     *  - float $liquidityUsdMax: Maximum liquidity in USD
+     *  - int $txns24hMin: Minimum number of transactions in 24h
+     *  - string|int $createdAfter: Only pools created after this time (Unix timestamp)
+     *  - string|int $createdBefore: Only pools created before this time (Unix timestamp)
+     *  - bool $asObject: Whether to return the response as an object (default: false)
+     * @return array<string, mixed>|object Filtered pools with pagination info
+     * @throws ValidationException If parameters are invalid
+     */
+    public function filterPools(string $networkId, array $options = [])
+    {
+        $this->validateNetworkId($networkId);
+
+        if (isset($options['limit']) && ($options['limit'] < 1 || $options['limit'] > 100)) {
+            throw new ValidationException('Limit must be between 1 and 100');
+        }
+
+        $params = [];
+
+        if (isset($options['page'])) {
+            $params['page'] = $options['page'];
+        }
+        if (isset($options['limit'])) {
+            $params['limit'] = $options['limit'];
+        }
+        if (isset($options['sortBy'])) {
+            $params['sort_by'] = $options['sortBy'];
+        }
+        if (isset($options['sortDir'])) {
+            $params['sort_dir'] = $options['sortDir'];
+        }
+        if (isset($options['volume24hMin'])) {
+            $params['volume_24h_min'] = $options['volume24hMin'];
+        }
+        if (isset($options['volume24hMax'])) {
+            $params['volume_24h_max'] = $options['volume24hMax'];
+        }
+        if (isset($options['volume7dMin'])) {
+            $params['volume_7d_min'] = $options['volume7dMin'];
+        }
+        if (isset($options['volume7dMax'])) {
+            $params['volume_7d_max'] = $options['volume7dMax'];
+        }
+        if (isset($options['liquidityUsdMin'])) {
+            $params['liquidity_usd_min'] = $options['liquidityUsdMin'];
+        }
+        if (isset($options['liquidityUsdMax'])) {
+            $params['liquidity_usd_max'] = $options['liquidityUsdMax'];
+        }
+        if (isset($options['txns24hMin'])) {
+            $params['txns_24h_min'] = $options['txns24hMin'];
+        }
+        if (isset($options['createdAfter'])) {
+            $params['created_after'] = $options['createdAfter'];
+        }
+        if (isset($options['createdBefore'])) {
+            $params['created_before'] = $options['createdBefore'];
+        }
+
+        $response = $this->get("/networks/{$networkId}/pools/filter", $params);
+
+        return $this->transformResponse($response, $options['asObject'] ?? false);
+    }
+
+    /**
      * Find a pool by its address on a specific network
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)

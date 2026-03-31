@@ -3,6 +3,7 @@
 namespace DexPaprika\Api;
 
 use DexPaprika\Exception\NotFoundException;
+use DexPaprika\Exception\ValidationException;
 use DexPaprika\Utils\ResponseTransformer;
 
 class TokensApi extends BaseApi
@@ -152,6 +153,163 @@ class TokensApi extends BaseApi
     public function listTokenPairs(string $networkId, string $tokenAddress, array $options = [])
     {
         return $this->getTokenPairs($networkId, $tokenAddress, $options);
+    }
+
+    /**
+     * Get top tokens on a network ranked by volume, price, liquidity, or other metrics
+     *
+     * @param string $networkId Network ID (e.g., ethereum, solana)
+     * @param array<string, mixed> $options Options:
+     *  - int $page: Page number for pagination (1-indexed, default: 1)
+     *  - int $limit: Number of items per page (default: 10, max: 100)
+     *  - string $orderBy: Field to order by (e.g., 'volume_24h', 'price_usd', 'liquidity_usd')
+     *  - string $sort: Sort direction ('asc' or 'desc', default: 'desc')
+     *  - bool $asObject: Whether to return the response as an object (default: false)
+     * @return array<string, mixed>|object Top tokens with pagination info
+     * @throws ValidationException If parameters are invalid
+     */
+    public function getTopTokens(string $networkId, array $options = [])
+    {
+        if (empty($networkId) || trim($networkId) === '') {
+            throw new ValidationException('Network ID is required and cannot be empty');
+        }
+
+        if (isset($options['limit']) && ($options['limit'] < 1 || $options['limit'] > 100)) {
+            throw new ValidationException('Limit must be between 1 and 100');
+        }
+
+        $params = [];
+
+        if (isset($options['page'])) {
+            $params['page'] = $options['page'];
+        }
+        if (isset($options['limit'])) {
+            $params['limit'] = $options['limit'];
+        }
+        if (isset($options['orderBy'])) {
+            $params['order_by'] = $options['orderBy'];
+        }
+        if (isset($options['sort'])) {
+            $params['sort'] = $options['sort'];
+        }
+
+        $response = $this->get("/networks/{$networkId}/tokens/top", $params);
+
+        return $this->transformResponse($response, $options['asObject'] ?? false);
+    }
+
+    /**
+     * Filter tokens on a network by volume, liquidity, FDV, transactions, and creation date
+     *
+     * @param string $networkId Network ID (e.g., ethereum, solana)
+     * @param array<string, mixed> $options Filter options:
+     *  - int $page: Page number for pagination (1-indexed, default: 1)
+     *  - int $limit: Number of items per page (default: 10, max: 100)
+     *  - string $sortBy: Field to sort by (e.g., 'volume_24h', 'liquidity_usd', 'fdv')
+     *  - string $sortDir: Sort direction ('asc' or 'desc', default: 'desc')
+     *  - float $volume24hMin: Minimum 24h volume in USD
+     *  - float $volume24hMax: Maximum 24h volume in USD
+     *  - float $liquidityUsdMin: Minimum liquidity in USD
+     *  - float $fdvMin: Minimum fully diluted valuation in USD
+     *  - float $fdvMax: Maximum fully diluted valuation in USD
+     *  - int $txns24hMin: Minimum number of transactions in 24h
+     *  - string|int $createdAfter: Only tokens created after this time (Unix timestamp)
+     *  - string|int $createdBefore: Only tokens created before this time (Unix timestamp)
+     *  - bool $asObject: Whether to return the response as an object (default: false)
+     * @return array<string, mixed>|object Filtered tokens with pagination info
+     * @throws ValidationException If parameters are invalid
+     */
+    public function filterTokens(string $networkId, array $options = [])
+    {
+        if (empty($networkId) || trim($networkId) === '') {
+            throw new ValidationException('Network ID is required and cannot be empty');
+        }
+
+        if (isset($options['limit']) && ($options['limit'] < 1 || $options['limit'] > 100)) {
+            throw new ValidationException('Limit must be between 1 and 100');
+        }
+
+        $params = [];
+
+        if (isset($options['page'])) {
+            $params['page'] = $options['page'];
+        }
+        if (isset($options['limit'])) {
+            $params['limit'] = $options['limit'];
+        }
+        if (isset($options['sortBy'])) {
+            $params['sort_by'] = $options['sortBy'];
+        }
+        if (isset($options['sortDir'])) {
+            $params['sort_dir'] = $options['sortDir'];
+        }
+        if (isset($options['volume24hMin'])) {
+            $params['volume_24h_min'] = $options['volume24hMin'];
+        }
+        if (isset($options['volume24hMax'])) {
+            $params['volume_24h_max'] = $options['volume24hMax'];
+        }
+        if (isset($options['liquidityUsdMin'])) {
+            $params['liquidity_usd_min'] = $options['liquidityUsdMin'];
+        }
+        if (isset($options['fdvMin'])) {
+            $params['fdv_min'] = $options['fdvMin'];
+        }
+        if (isset($options['fdvMax'])) {
+            $params['fdv_max'] = $options['fdvMax'];
+        }
+        if (isset($options['txns24hMin'])) {
+            $params['txns_24h_min'] = $options['txns24hMin'];
+        }
+        if (isset($options['createdAfter'])) {
+            $params['created_after'] = $options['createdAfter'];
+        }
+        if (isset($options['createdBefore'])) {
+            $params['created_before'] = $options['createdBefore'];
+        }
+
+        $response = $this->get("/networks/{$networkId}/tokens/filter", $params);
+
+        return $this->transformResponse($response, $options['asObject'] ?? false);
+    }
+
+    /**
+     * Get batch prices for multiple tokens on a network
+     *
+     * @param string $networkId Network ID (e.g., ethereum, solana)
+     * @param array<int, string> $tokens Array of token addresses (max 10)
+     * @param array<string, mixed> $options Options:
+     *  - bool $asObject: Whether to return the response as an object (default: false)
+     * @return array<int, array<string, mixed>>|array<int, object> Array of token prices
+     * @throws ValidationException If parameters are invalid
+     */
+    public function getMultiPrices(string $networkId, array $tokens, array $options = [])
+    {
+        if (empty($networkId) || trim($networkId) === '') {
+            throw new ValidationException('Network ID is required and cannot be empty');
+        }
+
+        if (empty($tokens)) {
+            throw new ValidationException('Tokens array is required and must not be empty');
+        }
+
+        if (count($tokens) > 10) {
+            throw new ValidationException('Tokens array must contain at most 10 addresses');
+        }
+
+        $params = [
+            'tokens' => implode(',', $tokens),
+        ];
+
+        $response = $this->get("/networks/{$networkId}/multi/prices", $params);
+
+        if ($options['asObject'] ?? false) {
+            return array_map(function ($item) {
+                return (object) $item;
+            }, $response);
+        }
+
+        return $response;
     }
 
     /**
