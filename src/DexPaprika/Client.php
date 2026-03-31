@@ -6,6 +6,7 @@ use DexPaprika\Api\DexesApi;
 use DexPaprika\Api\NetworksApi;
 use DexPaprika\Api\PoolsApi;
 use DexPaprika\Api\SearchApi;
+use DexPaprika\Api\StatsApi;
 use DexPaprika\Api\TokensApi;
 use DexPaprika\Api\UtilsApi;
 use DexPaprika\Cache\CacheInterface;
@@ -65,6 +66,11 @@ class Client
      * @var UtilsApi
      */
     public UtilsApi $utils;
+
+    /**
+     * @var StatsApi
+     */
+    public StatsApi $stats;
     
     /**
      * SDK version
@@ -107,6 +113,7 @@ class Client
         $this->tokens = new TokensApi($this->httpClient, $this->transformResponses, $this->config);
         $this->search = new SearchApi($this->httpClient, $this->transformResponses, $this->config);
         $this->utils = new UtilsApi($this->httpClient, $this->transformResponses, $this->config);
+        $this->stats = new StatsApi($this->httpClient, $this->transformResponses, $this->config);
     }
 
     /**

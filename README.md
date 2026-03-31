@@ -21,9 +21,12 @@ $solanaPools = $client->pools->getNetworkPools('solana', ['limit' => 10]);
 ## Features
 
 - Simple and intuitive PHP interface to all DexPaprika API endpoints
-- Access data from multiple blockchain networks
+- Access data from 33+ blockchain networks
 - Query information about DEXes, liquidity pools, and tokens
 - Get detailed price information, trading volume, and transactions
+- **Filter pools and tokens** by volume, liquidity, FDV, transactions, and creation date
+- **Get top tokens** on any network ranked by volume or other metrics
+- **Batch price lookups** for up to 10 tokens in a single request
 - Search across the entire DexPaprika ecosystem
 - Automatic retry with exponential backoff
 - Response caching with PSR-6 compatible interface
@@ -61,7 +64,7 @@ try {
     $networks = $client->networks->getNetworks();
     
     // Get global statistics
-    $stats = $client->stats->getStats();
+    $stats = $client->utils->getStats();
     
     // Get top pools by network (NEW in v1.3.0)
     $ethereumPools = $client->pools->getNetworkPools('ethereum', ['limit' => 10]);
@@ -167,7 +170,7 @@ $networks = $client->networks->getNetworks();
 
 ```php
 // Get global DEX statistics
-$stats = $client->stats->getStats();
+$stats = $client->utils->getStats();
 ```
 
 ### DEXes
@@ -216,6 +219,50 @@ $tokenPools = $client->tokens->getTokenPools('ethereum', '0xc02aaa39b223fe8d0a0e
     'limit' => 20,
     'reorder' => true  // NEW: Reorder pools so the token becomes the primary token for metrics
 ]);
+```
+
+### Pool Filtering
+
+```php
+// Find high-volume pools on Ethereum
+$filtered = $client->pools->filterPools('ethereum', [
+    'volume24hMin' => 100000,
+    'txns24hMin' => 50,
+    'sortBy' => 'volume_24h',
+    'sortDir' => 'desc',
+    'limit' => 10,
+]);
+echo "Found " . count($filtered['results']) . " pools matching criteria\n";
+```
+
+### Top Tokens & Token Filtering
+
+```php
+// Get top tokens by volume
+$topTokens = $client->tokens->getTopTokens('ethereum', [
+    'orderBy' => 'volume_24h',
+    'limit' => 10,
+]);
+
+// Filter tokens by criteria
+$filtered = $client->tokens->filterTokens('ethereum', [
+    'volume24hMin' => 100000,
+    'fdvMin' => 1000000,
+    'limit' => 10,
+]);
+```
+
+### Batch Token Prices
+
+```php
+// Get prices for multiple tokens in one request (max 10)
+$prices = $client->tokens->getMultiPrices('ethereum', [
+    '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
+    '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
+]);
+foreach ($prices as $p) {
+    echo "{$p['id']}: \${$p['price_usd']}\n";
+}
 ```
 
 ### Search
