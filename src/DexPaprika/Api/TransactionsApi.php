@@ -15,6 +15,8 @@ class TransactionsApi extends BaseApi
      *  - int $limit: Number of items per page (default: 10)
      *  - int $page: Page number for pagination (default: 0)
      *  - string $cursor: Transaction ID used for cursor-based pagination
+     *  - int $from: Filter transactions starting from this UNIX timestamp (inclusive, results capped to last 7 days)
+     *  - int $to: Filter transactions up to this UNIX timestamp (exclusive)
      *  - bool $asObject: Whether to return the response as an object (default: false)
      * @return array<string, mixed>|object The pool transactions response
      */
@@ -35,6 +37,14 @@ class TransactionsApi extends BaseApi
 
         if (isset($options['cursor'])) {
             $params['cursor'] = $options['cursor'];
+        }
+
+        if (isset($options['from'])) {
+            $params['from'] = $options['from'];
+        }
+
+        if (isset($options['to'])) {
+            $params['to'] = $options['to'];
         }
 
         $response = $this->get("/networks/{$networkId}/pools/{$poolAddress}/transactions", $params);
