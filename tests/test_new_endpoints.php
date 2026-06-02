@@ -76,12 +76,13 @@ test('tokens->filterTokens - basic', function () use ($client) {
         'volume24hMin' => 100000,
         'limit' => 5,
     ]);
-    assert(isset($result['results']), 'Missing results key');
-    assert(count($result['results']) > 0, 'No results');
+    // The token filter endpoint returns its rows under a 'data' key (not 'results')
+    assert(isset($result['data']), 'Missing data key');
+    assert(count($result['data']) > 0, 'No results');
     assert(isset($result['page_info']), 'Missing page_info');
-    $token = $result['results'][0];
+    $token = $result['data'][0];
     assert(isset($token['address']), 'Token missing address');
-    echo "   Got " . count($result['results']) . " filtered tokens\n";
+    echo "   Got " . count($result['data']) . " filtered tokens\n";
 });
 
 test('tokens->filterTokens - with FDV', function () use ($client) {
@@ -90,8 +91,8 @@ test('tokens->filterTokens - with FDV', function () use ($client) {
         'fdvMin' => 1000000,
         'limit' => 3,
     ]);
-    assert(isset($result['results']), 'Missing results');
-    echo "   Got " . count($result['results']) . " tokens with FDV filter\n";
+    assert(isset($result['data']), 'Missing data');
+    echo "   Got " . count($result['data']) . " tokens with FDV filter\n";
 });
 
 // 4. Multi Prices
