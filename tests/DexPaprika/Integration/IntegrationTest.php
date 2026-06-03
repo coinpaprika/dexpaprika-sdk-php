@@ -96,6 +96,86 @@ class IntegrationTest extends TestCase
         $this->assertLessThanOrEqual(3, count($topPools['pools']));
     }
     
+    public function testAdvancedSearchPoolsGlobal(): void
+    {
+        // Global advanced search across all networks with sorting + a filter.
+        // Canonical sortBy/sortDir must be translated to order_by/sort on the wire.
+        $result = $this->client->pools->advancedSearchPools([
+            'limit' => 3,
+            'sortBy' => 'volume_usd_24h',
+            'sortDir' => 'desc',
+            'priceUsdMin' => 0.5,
+            'dexName' => 'uniswap_v3',
+        ]);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('results', $result);
+        $this->assertArrayHasKey('has_next_page', $result);
+        $this->assertArrayHasKey('next_cursor', $result);
+        $this->assertArrayHasKey('query', $result);
+
+        $this->assertNotEmpty($result['results']);
+        $this->assertLessThanOrEqual(3, count($result['results']));
+
+        // The query echo proves the wire translation: canonical sortBy/sortDir
+        // are sent as order_by/sort, never the raw canonical names.
+        $this->assertSame('volume_usd_24h', $result['query']['order_by']);
+        $this->assertSame('desc', $result['query']['sort']);
+        $this->assertArrayNotHasKey('sort_by', $result['query']);
+        $this->assertArrayNotHasKey('sort_dir', $result['query']);
+
+        // The dex_name filter actually narrows the results.
+        foreach ($result['results'] as $pool) {
+            $this->assertSame('uniswap_v3', $pool['dex_id']);
+        }
+    }
+
+    public function testAdvancedSearchPoolsPerNetwork(): void
+    {
+        // Per-network variant hits /frontend/v1/networks/{network}/pools.
+        $result = $this->client->pools->advancedSearchPools([
+            'network' => 'ethereum',
+            'limit' => 3,
+            'sortBy' => 'volume_usd_24h',
+            'sortDir' => 'desc',
+        ]);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('results', $result);
+        $this->assertNotEmpty($result['results']);
+        $this->assertSame('ethereum', $result['query']['network']);
+
+        // Every returned pool belongs to the requested chain.
+        foreach ($result['results'] as $pool) {
+            $this->assertSame('ethereum', $pool['chain']);
+        }
+    }
+
+    public function testAdvancedSearchPoolsCursorPagination(): void
+    {
+        // Cursor pagination: feed next_cursor back in and the second page must
+        // contain different pools than the first.
+        $page1 = $this->client->pools->advancedSearchPools([
+            'network' => 'ethereum',
+            'limit' => 3,
+        ]);
+
+        $this->assertNotEmpty($page1['results']);
+        $this->assertNotEmpty($page1['next_cursor']);
+
+        $page2 = $this->client->pools->advancedSearchPools([
+            'network' => 'ethereum',
+            'limit' => 3,
+            'cursor' => $page1['next_cursor'],
+        ]);
+
+        $this->assertNotEmpty($page2['results']);
+
+        $page1Ids = array_map(fn($pool) => $pool['id'], $page1['results']);
+        $page2Ids = array_map(fn($pool) => $pool['id'], $page2['results']);
+        $this->assertEmpty(array_intersect($page1Ids, $page2Ids));
+    }
+
     public function testPagination(): void
     {
         $paginator = $this->client->createPaginator(

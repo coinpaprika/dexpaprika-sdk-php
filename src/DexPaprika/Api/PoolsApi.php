@@ -328,6 +328,140 @@ class PoolsApi extends BaseApi
     }
 
     /**
+     * Advanced pool search across all networks (or a single network).
+     *
+     * Hits the frontend search surface: GET /frontend/v1/pools (global) and
+     * GET /frontend/v1/networks/{network}/pools (per-network). Supports cursor
+     * pagination, sorting, and a rich set of numeric/string filters.
+     *
+     * Pagination here is cursor-based, NOT page-based. Read $response['next_cursor']
+     * from the previous response and pass it back as the 'cursor' option to walk
+     * forward. $response['has_next_page'] tells you whether more results exist.
+     *
+     * Note on sort parameters: this method exposes the canonical 'sortBy' / 'sortDir'
+     * options and translates them to the wire names the backend expects
+     * (sortBy -> order_by, sortDir -> sort). Do not pass order_by/sort directly.
+     *
+     * @param array<string, mixed> $options Search options:
+     *  - string $network: Restrict to a single network (e.g., 'ethereum', 'solana').
+     *                     When omitted, searches across all networks.
+     *  - int $limit: Number of pools per page
+     *  - string $cursor: Cursor for the next page (from a previous response's 'next_cursor')
+     *  - string $sortBy: Field to sort by. One of: volume_usd_24h, volume_usd_7d,
+     *                    volume_usd_30d, liquidity_usd, txns_24h, price_usd,
+     *                    price_change_percentage_24h, created_at (default: volume_usd_24h).
+     *                    Translated to 'order_by' on the wire.
+     *  - string $sortDir: Sort direction, 'asc' or 'desc' (default: 'desc').
+     *                    Translated to 'sort' on the wire.
+     *  - float $volume24hMin / $volume24hMax: 24h volume bounds in USD
+     *  - float $volume7dMin / $volume7dMax: 7d volume bounds in USD
+     *  - float $liquidityUsdMin / $liquidityUsdMax: Liquidity bounds in USD
+     *  - int $txns24hMin: Minimum number of transactions in 24h
+     *  - float $priceUsdMin / $priceUsdMax: Price bounds in USD
+     *  - float $priceChangePercentage24hMin / $priceChangePercentage24hMax: 24h price-change bounds (%)
+     *  - string $dexName: Restrict to a single DEX (e.g., 'uniswap_v3')
+     *  - string|int $createdAfter / $createdBefore: Pool creation time bounds
+     *  - bool $detailed: When true, each token carries fdv plus per-timeframe metric blocks
+     *  - bool $asObject: Whether to return the response as an object (default: false)
+     * @return array<string, mixed>|object Search results: results, has_next_page, next_cursor, query
+     * @throws ValidationException If parameters are invalid
+     */
+    public function advancedSearchPools(array $options = [])
+    {
+        if (isset($options['network'])) {
+            $this->validateNetworkId($options['network']);
+        }
+
+        if (isset($options['limit']) && ($options['limit'] < 1 || $options['limit'] > 100)) {
+            throw new ValidationException('Limit must be between 1 and 100');
+        }
+
+        $params = [];
+
+        if (isset($options['limit'])) {
+            $params['limit'] = $options['limit'];
+        }
+        if (isset($options['cursor'])) {
+            $params['cursor'] = $options['cursor'];
+        }
+        // Canonical sort options translate to the backend wire names:
+        // sortBy -> order_by (field), sortDir -> sort (direction).
+        if (isset($options['sortBy'])) {
+            $params['order_by'] = $options['sortBy'];
+        }
+        if (isset($options['sortDir'])) {
+            $params['sort'] = $options['sortDir'];
+        }
+        if (isset($options['volume24hMin'])) {
+            $params['volume_24h_min'] = $options['volume24hMin'];
+        }
+        if (isset($options['volume24hMax'])) {
+            $params['volume_24h_max'] = $options['volume24hMax'];
+        }
+        if (isset($options['volume7dMin'])) {
+            $params['volume_7d_min'] = $options['volume7dMin'];
+        }
+        if (isset($options['volume7dMax'])) {
+            $params['volume_7d_max'] = $options['volume7dMax'];
+        }
+        if (isset($options['liquidityUsdMin'])) {
+            $params['liquidity_usd_min'] = $options['liquidityUsdMin'];
+        }
+        if (isset($options['liquidityUsdMax'])) {
+            $params['liquidity_usd_max'] = $options['liquidityUsdMax'];
+        }
+        if (isset($options['txns24hMin'])) {
+            $params['txns_24h_min'] = $options['txns24hMin'];
+        }
+        if (isset($options['priceUsdMin'])) {
+            $params['price_usd_min'] = $options['priceUsdMin'];
+        }
+        if (isset($options['priceUsdMax'])) {
+            $params['price_usd_max'] = $options['priceUsdMax'];
+        }
+        if (isset($options['priceChangePercentage24hMin'])) {
+            $params['price_change_percentage_24h_min'] = $options['priceChangePercentage24hMin'];
+        }
+        if (isset($options['priceChangePercentage24hMax'])) {
+            $params['price_change_percentage_24h_max'] = $options['priceChangePercentage24hMax'];
+        }
+        if (isset($options['dexName'])) {
+            $params['dex_name'] = $options['dexName'];
+        }
+        if (isset($options['createdAfter'])) {
+            $params['created_after'] = $options['createdAfter'];
+        }
+        if (isset($options['createdBefore'])) {
+            $params['created_before'] = $options['createdBefore'];
+        }
+        if (isset($options['detailed'])) {
+            // Send a real query string the backend reads as truthy.
+            $params['detailed'] = $options['detailed'] ? 'true' : 'false';
+        }
+
+        if (isset($options['network'])) {
+            $endpoint = "/frontend/v1/networks/{$options['network']}/pools";
+        } else {
+            $endpoint = '/frontend/v1/pools';
+        }
+
+        $response = $this->get($endpoint, $params);
+
+        return $this->transformResponse($response, $options['asObject'] ?? false);
+    }
+
+    /**
+     * Advanced pool search (alias for advancedSearchPools).
+     *
+     * @param array<string, mixed> $options See advancedSearchPools() for the full option list.
+     * @return array<string, mixed>|object Search results: results, has_next_page, next_cursor, query
+     */
+    public function searchPools(array $options = [])
+    {
+        return $this->advancedSearchPools($options);
+    }
+
+    /**
      * Find a pool by its address on a specific network
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)
