@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [sdkv1.0.0, main]
   pull_request:
 
 # Least privilege: CI only reads the repo and runs the test suite.
