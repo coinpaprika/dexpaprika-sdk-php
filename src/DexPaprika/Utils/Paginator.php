@@ -35,6 +35,11 @@ class Paginator
      * @var array<string, mixed>|null The current page result
      */
     private ?array $currentResult = null;
+
+    /**
+     * @var string|null The cursor for the next page (cursor-paginated endpoints)
+     */
+    private ?string $nextCursor = null;
     
     /**
      * Create a new paginator
@@ -68,8 +73,12 @@ class Paginator
      */
     public function getNextPage(): array
     {
-        // Add page parameter to method params
+        // Add page parameter to method params (ignored by cursor-based endpoints)
+        // and thread the cursor through for cursor-paginated search endpoints.
         $params = array_merge($this->params, ['page' => $this->currentPage]);
+        if ($this->nextCursor !== null && $this->nextCursor !== '') {
+            $params['cursor'] = $this->nextCursor;
+        }
         
         // Build arguments array from parameters (handling positional parameters)
         $args = [];
@@ -106,11 +115,16 @@ class Paginator
         $this->currentPage++;
         $pageInfo = $result['page_info'] ?? null;
         if ($pageInfo) {
+            // Legacy offset-paginated endpoints (e.g. dexes pools, transactions)
             $this->hasNext = $this->currentPage < ($pageInfo['total_pages'] ?? 0);
+        } elseif (array_key_exists('has_next_page', $result)) {
+            // Cursor-paginated search endpoints (pools/search, tokens/search)
+            $this->hasNext = (bool) ($result['has_next_page'] ?? false);
+            $this->nextCursor = $result['next_cursor'] ?? null;
         } else {
             $this->hasNext = false;
         }
-        
+
         return $result;
     }
     
@@ -146,7 +160,7 @@ class Paginator
             
             // Extract items from the result based on common patterns
             $items = null;
-            foreach (['pools', 'tokens', 'dexes', 'transactions'] as $key) {
+            foreach (['results', 'pools', 'tokens', 'dexes', 'transactions'] as $key) {
                 if (isset($result[$key]) && is_array($result[$key])) {
                     $items = $result[$key];
                     break;

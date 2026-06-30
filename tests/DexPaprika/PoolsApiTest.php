@@ -80,18 +80,14 @@ class PoolsApiTest extends TestCase
 
     public function testGetNetworkPools(): void
     {
-        // Mock the API response for getNetworkPools
+        // Mock the API response for getNetworkPools (cursor-paginated search shape)
         $expectedResponse = [
-            'pools' => [
-                ['id' => 'eth_wbtc', 'name' => 'ETH/WBTC'],
-                ['id' => 'eth_usdc', 'name' => 'ETH/USDC']
+            'results' => [
+                ['id' => '0xpool1', 'tokens' => [['id' => 'eth', 'name' => 'Ether', 'symbol' => 'ETH']]],
+                ['id' => '0xpool2', 'tokens' => [['id' => 'usdc', 'name' => 'USD Coin', 'symbol' => 'USDC']]]
             ],
-            'page_info' => [
-                'page' => 0,
-                'total_pages' => 5,
-                'items_on_page' => 2,
-                'total_items' => 10
-            ]
+            'has_next_page' => true,
+            'next_cursor' => 'cursor_abc',
         ];
 
         // Create a mock for the PoolsApi that only mocks the get method
@@ -100,19 +96,18 @@ class PoolsApiTest extends TestCase
             ->onlyMethods(['get'])
             ->getMock();
 
-        // Set up expectations for the mocked get method
+        // The page option must be dropped (cursor-based) and the search endpoint used
         $mockApi->expects($this->any())
             ->method('get')
             ->with(
-                $this->equalTo('/networks/ethereum/pools'),
+                $this->equalTo('/networks/ethereum/pools/search'),
                 $this->equalTo([
-                    'page' => 0,
                     'limit' => 10
                 ])
             )
             ->willReturn($expectedResponse);
 
-        // Call the method with test parameters
+        // Call the method with test parameters (page is accepted but ignored)
         $result = $mockApi->getNetworkPools('ethereum', [
             'page' => 0,
             'limit' => 10
@@ -130,8 +125,69 @@ class PoolsApiTest extends TestCase
 
         // Verify transformation to object
         $this->assertIsObject($result);
-        $this->assertIsArray($result->pools);
-        $this->assertEquals(2, count($result->pools));
+        $this->assertIsArray($result->results);
+        $this->assertEquals(2, count($result->results));
+        $this->assertEquals('0xpool1', $result->results[0]->id);
+    }
+
+    public function testGetNetworkPoolsMapsLegacySortField(): void
+    {
+        // A legacy sort field value must be mapped to its canonical search name
+        $mockApi = $this->getMockBuilder(PoolsApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+
+        $mockApi->expects($this->once())
+            ->method('get')
+            ->with(
+                $this->equalTo('/networks/ethereum/pools/search'),
+                $this->equalTo([
+                    'limit' => 5,
+                    'order_by' => 'volume_usd_24h',
+                    'sort' => 'desc',
+                ])
+            )
+            ->willReturn(['results' => [], 'has_next_page' => false, 'next_cursor' => null]);
+
+        $mockApi->getNetworkPools('ethereum', [
+            'limit' => 5,
+            'orderBy' => 'volume_usd', // legacy -> volume_usd_24h
+            'sort' => 'desc',
+        ]);
+    }
+
+    public function testFilterPoolsUsesSearchEndpointAndMapsParams(): void
+    {
+        // filterPools must hit /pools/search, send order_by + sort (not sort_by/sort_dir),
+        // drop page, and rename legacy filter params to canonical names.
+        $mockApi = $this->getMockBuilder(PoolsApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+
+        $mockApi->expects($this->once())
+            ->method('get')
+            ->with(
+                $this->equalTo('/networks/ethereum/pools/search'),
+                $this->equalTo([
+                    'limit' => 3,
+                    'order_by' => 'volume_usd_24h',
+                    'sort' => 'desc',
+                    'volume_usd_24h_min' => 50000,
+                    'txns_24h_min' => 10,
+                ])
+            )
+            ->willReturn(['results' => [], 'has_next_page' => false, 'next_cursor' => null]);
+
+        $mockApi->filterPools('ethereum', [
+            'page' => 1, // ignored
+            'limit' => 3,
+            'sortBy' => 'volume_24h', // legacy -> volume_usd_24h
+            'sortDir' => 'desc',
+            'volume24hMin' => 50000, // legacy -> volume_usd_24h_min
+            'txns24hMin' => 10,
+        ]);
     }
 
     public function testGetNetworkPoolsValidatesNetworkId(): void
@@ -158,18 +214,14 @@ class PoolsApiTest extends TestCase
 
     public function testListNetworkPools(): void
     {
-        // Mock the API response for listNetworkPools
+        // Mock the API response for listNetworkPools (cursor-paginated search shape)
         $expectedResponse = [
-            'pools' => [
-                ['id' => 'eth_wbtc', 'name' => 'ETH/WBTC'],
-                ['id' => 'eth_usdc', 'name' => 'ETH/USDC']
+            'results' => [
+                ['id' => '0xpool1'],
+                ['id' => '0xpool2']
             ],
-            'page_info' => [
-                'page' => 0,
-                'total_pages' => 5,
-                'items_on_page' => 2,
-                'total_items' => 10
-            ]
+            'has_next_page' => false,
+            'next_cursor' => null,
         ];
 
         // Use partial mock to only mock the getNetworkPools method
@@ -460,34 +512,22 @@ class PoolsApiTest extends TestCase
 
     public function testFetchAllNetworkPools(): void
     {
-        // Test responses for multiple pages
-        $responses = [
-            // Page 0
-            [
-                'pools' => [
-                    ['id' => 'pool1', 'name' => 'Pool 1'],
-                    ['id' => 'pool2', 'name' => 'Pool 2']
-                ],
-                'page_info' => [
-                    'page' => 0,
-                    'total_pages' => 2,
-                    'items_on_page' => 2,
-                    'total_items' => 4
-                ]
+        // Cursor-paginated responses: first page advertises a next cursor, second ends.
+        $page0 = [
+            'results' => [
+                ['id' => 'pool1'],
+                ['id' => 'pool2']
             ],
-            // Page 1
-            [
-                'pools' => [
-                    ['id' => 'pool3', 'name' => 'Pool 3'],
-                    ['id' => 'pool4', 'name' => 'Pool 4']
-                ],
-                'page_info' => [
-                    'page' => 1,
-                    'total_pages' => 2,
-                    'items_on_page' => 2,
-                    'total_items' => 4
-                ]
-            ]
+            'has_next_page' => true,
+            'next_cursor' => 'cursor1',
+        ];
+        $page1 = [
+            'results' => [
+                ['id' => 'pool3'],
+                ['id' => 'pool4']
+            ],
+            'has_next_page' => false,
+            'next_cursor' => null,
         ];
 
         // Mock the PoolsApi but only the getNetworkPools method
@@ -496,19 +536,18 @@ class PoolsApiTest extends TestCase
             ->onlyMethods(['getNetworkPools'])
             ->getMock();
 
-        // Set up expectations for each call to getNetworkPools
+        // The iterator threads next_cursor into the following request
         $mockApi->expects($this->exactly(2))
             ->method('getNetworkPools')
-            ->willReturnCallback(function($networkId, $options) use ($responses) {
-                $page = $options['page'] ?? 0;
-                return $responses[$page];
+            ->willReturnCallback(function($networkId, $options) use ($page0, $page1) {
+                return (($options['cursor'] ?? null) === 'cursor1') ? $page1 : $page0;
             });
 
         // Create a collector for results
         $allPools = [];
         $callback = function($poolsData, $page) use (&$allPools) {
-            if (isset($poolsData['pools'])) {
-                foreach ($poolsData['pools'] as $pool) {
+            if (isset($poolsData['results'])) {
+                foreach ($poolsData['results'] as $pool) {
                     $allPools[] = $pool;
                 }
             }

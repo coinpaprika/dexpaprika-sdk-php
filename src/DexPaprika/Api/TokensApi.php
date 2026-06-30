@@ -5,6 +5,7 @@ namespace DexPaprika\Api;
 use DexPaprika\Exception\NotFoundException;
 use DexPaprika\Exception\ValidationException;
 use DexPaprika\Utils\ResponseTransformer;
+use DexPaprika\Utils\SearchParams;
 
 class TokensApi extends BaseApi
 {
@@ -156,16 +157,23 @@ class TokensApi extends BaseApi
     }
 
     /**
-     * Get top tokens on a network ranked by volume, price, liquidity, or other metrics
+     * Get top tokens on a network ranked by volume, liquidity, or other metrics
+     *
+     * Backed by the unified /networks/{network}/tokens/search endpoint, which is
+     * cursor-paginated. The response is shaped as:
+     * {@code results[], has_next_page, next_cursor, query}. Each token exposes
+     * address, chain, created_at, price_usd, volume_usd_24h/7d/30d, liquidity_usd,
+     * fdv_usd, txns_24h and price_change_percentage_24h (a flat shape, no name/symbol).
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)
      * @param array<string, mixed> $options Options:
-     *  - int $page: Page number for pagination (1-indexed, default: 1)
+     *  - int $page: Accepted for backward compatibility but ignored (the endpoint is cursor-based)
+     *  - string $cursor: Opaque cursor from a previous response's next_cursor
      *  - int $limit: Number of items per page (default: 10, max: 100)
-     *  - string $orderBy: Field to order by (e.g., 'volume_24h', 'price_usd', 'liquidity_usd')
+     *  - string $orderBy: Field to order by (legacy values mapped, default: 'volume_usd_24h')
      *  - string $sort: Sort direction ('asc' or 'desc', default: 'desc')
      *  - bool $asObject: Whether to return the response as an object (default: false)
-     * @return array<string, mixed>|object Top tokens with pagination info
+     * @return array<string, mixed>|object Top tokens (results[] + has_next_page + next_cursor)
      * @throws ValidationException If parameters are invalid
      */
     public function getTopTokens(string $networkId, array $options = [])
@@ -180,20 +188,20 @@ class TokensApi extends BaseApi
 
         $params = [];
 
-        if (isset($options['page'])) {
-            $params['page'] = $options['page'];
-        }
         if (isset($options['limit'])) {
             $params['limit'] = $options['limit'];
         }
         if (isset($options['orderBy'])) {
-            $params['order_by'] = $options['orderBy'];
+            $params['order_by'] = SearchParams::mapTokenSortField($options['orderBy']);
         }
         if (isset($options['sort'])) {
             $params['sort'] = $options['sort'];
         }
+        if (isset($options['cursor'])) {
+            $params['cursor'] = $options['cursor'];
+        }
 
-        $response = $this->get("/networks/{$networkId}/tokens/top", $params);
+        $response = $this->get("/networks/{$networkId}/tokens/search", $params);
 
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
@@ -201,11 +209,17 @@ class TokensApi extends BaseApi
     /**
      * Filter tokens on a network by volume, liquidity, FDV, transactions, and creation date
      *
+     * Backed by the unified /networks/{network}/tokens/search endpoint, which is
+     * cursor-paginated and returns {@code results[], has_next_page, next_cursor, query}.
+     * Legacy sort-field values and legacy filter parameter names are mapped to the
+     * canonical search names so requests do not 400.
+     *
      * @param string $networkId Network ID (e.g., ethereum, solana)
      * @param array<string, mixed> $options Filter options:
-     *  - int $page: Page number for pagination (1-indexed, default: 1)
+     *  - int $page: Accepted for backward compatibility but ignored (the endpoint is cursor-based)
+     *  - string $cursor: Opaque cursor from a previous response's next_cursor
      *  - int $limit: Number of items per page (default: 10, max: 100)
-     *  - string $sortBy: Field to sort by (e.g., 'volume_24h', 'liquidity_usd', 'fdv')
+     *  - string $sortBy: Field to sort by (legacy values mapped, e.g. 'fdv' -> 'fdv_usd')
      *  - string $sortDir: Sort direction ('asc' or 'desc', default: 'desc')
      *  - float $volume24hMin: Minimum 24h volume in USD
      *  - float $volume24hMax: Maximum 24h volume in USD
@@ -216,7 +230,7 @@ class TokensApi extends BaseApi
      *  - string|int $createdAfter: Only tokens created after this time (Unix timestamp)
      *  - string|int $createdBefore: Only tokens created before this time (Unix timestamp)
      *  - bool $asObject: Whether to return the response as an object (default: false)
-     * @return array<string, mixed>|object Filtered tokens with pagination info
+     * @return array<string, mixed>|object Filtered tokens (results[] + has_next_page + next_cursor)
      * @throws ValidationException If parameters are invalid
      */
     public function filterTokens(string $networkId, array $options = [])
@@ -231,17 +245,17 @@ class TokensApi extends BaseApi
 
         $params = [];
 
-        if (isset($options['page'])) {
-            $params['page'] = $options['page'];
-        }
         if (isset($options['limit'])) {
             $params['limit'] = $options['limit'];
         }
+        if (isset($options['cursor'])) {
+            $params['cursor'] = $options['cursor'];
+        }
         if (isset($options['sortBy'])) {
-            $params['sort_by'] = $options['sortBy'];
+            $params['order_by'] = SearchParams::mapTokenSortField($options['sortBy']);
         }
         if (isset($options['sortDir'])) {
-            $params['sort_dir'] = $options['sortDir'];
+            $params['sort'] = $options['sortDir'];
         }
         if (isset($options['volume24hMin'])) {
             $params['volume_24h_min'] = $options['volume24hMin'];
@@ -268,7 +282,10 @@ class TokensApi extends BaseApi
             $params['created_before'] = $options['createdBefore'];
         }
 
-        $response = $this->get("/networks/{$networkId}/tokens/filter", $params);
+        // Normalise legacy filter parameter names to their canonical search names.
+        $params = SearchParams::mapTokenFilterParams($params);
+
+        $response = $this->get("/networks/{$networkId}/tokens/search", $params);
 
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
