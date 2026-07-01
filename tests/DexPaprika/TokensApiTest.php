@@ -350,4 +350,65 @@ class TokensApiTest extends TestCase
         $this->assertEquals('eth', $objectResult->id);
         $this->assertEquals('Ethereum', $objectResult->name);
     }
+
+    public function testGetTopTokensUsesSearchEndpoint(): void
+    {
+        // getTopTokens must hit /tokens/search, drop page, and map legacy sort fields.
+        $mockApi = $this->getMockBuilder(TokensApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+
+        $mockApi->expects($this->once())
+            ->method('get')
+            ->with(
+                $this->equalTo('/networks/ethereum/tokens/search'),
+                $this->equalTo([
+                    'limit' => 5,
+                    'order_by' => 'volume_usd_24h',
+                    'sort' => 'asc',
+                ])
+            )
+            ->willReturn(['results' => [], 'has_next_page' => false, 'next_cursor' => null]);
+
+        $mockApi->getTopTokens('ethereum', [
+            'page' => 1, // ignored
+            'limit' => 5,
+            'orderBy' => 'volume_24h', // legacy -> volume_usd_24h
+            'sort' => 'asc',
+        ]);
+    }
+
+    public function testFilterTokensUsesSearchEndpointAndMapsParams(): void
+    {
+        // filterTokens must hit /tokens/search, send order_by + sort (not sort_by/sort_dir),
+        // drop page, and rename legacy filter params to canonical names.
+        $mockApi = $this->getMockBuilder(TokensApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+
+        $mockApi->expects($this->once())
+            ->method('get')
+            ->with(
+                $this->equalTo('/networks/ethereum/tokens/search'),
+                $this->equalTo([
+                    'limit' => 3,
+                    'order_by' => 'fdv_usd',
+                    'sort' => 'desc',
+                    'volume_usd_24h_min' => 100000,
+                    'fdv_min' => 1000000,
+                ])
+            )
+            ->willReturn(['results' => [], 'has_next_page' => false, 'next_cursor' => null]);
+
+        $mockApi->filterTokens('ethereum', [
+            'page' => 1, // ignored
+            'limit' => 3,
+            'sortBy' => 'fdv', // legacy -> fdv_usd
+            'sortDir' => 'desc',
+            'volume24hMin' => 100000, // legacy -> volume_usd_24h_min
+            'fdvMin' => 1000000,
+        ]);
+    }
 }

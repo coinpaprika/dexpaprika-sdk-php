@@ -6,6 +6,7 @@ use DexPaprika\Exception\NotFoundException;
 use DexPaprika\Exception\DeprecationException;
 use DexPaprika\Exception\ValidationException;
 use DexPaprika\Utils\ResponseTransformer;
+use DexPaprika\Utils\SearchParams;
 
 class PoolsApi extends BaseApi
 {
@@ -64,12 +65,20 @@ class PoolsApi extends BaseApi
     /**
      * Get a list of top liquidity pools on a specific network
      *
+     * Backed by the unified /networks/{network}/pools/search endpoint, which is
+     * cursor-paginated. The response is shaped as:
+     * {@code results[], has_next_page, next_cursor, query}. Each pool exposes
+     * id (pool address), chain, dex_id, dex_name, fee, created_at,
+     * volume_usd_24h/7d/30d, liquidity_usd, transactions_24h, price_usd,
+     * price_change_percentage_5m/1h/24h and tokens[].
+     *
      * @param string $networkId Network ID (e.g., ethereum, solana)
      * @param array<string, mixed> $options Additional options:
-     *  - int $page: Page number for pagination (default: 0)
+     *  - int $page: Accepted for backward compatibility but ignored (the endpoint is cursor-based)
+     *  - string $cursor: Opaque cursor from a previous response's next_cursor
      *  - int $limit: Number of items per page (default: 10, max: 100)
-     *  - string $orderBy: Field to order by (default: 'volume_usd')
-     *  - string $sort: Sort order (default: 'desc')
+     *  - string $orderBy: Field to order by (legacy values are mapped, default: 'volume_usd_24h')
+     *  - string $sort: Sort direction ('asc' or 'desc', default: 'desc')
      *  - bool $asObject: Whether to return the response as an object (default: false)
      * @return array<string, mixed>|object List of pools on the specified network
      * @throws ValidationException If network ID is invalid or parameters are out of range
@@ -78,7 +87,7 @@ class PoolsApi extends BaseApi
     {
         // Validate required network parameter
         $this->validateNetworkId($networkId);
-        
+
         // Validate limit parameter
         if (isset($options['limit']) && ($options['limit'] < 1 || $options['limit'] > 100)) {
             throw new ValidationException('Limit must be between 1 and 100');
@@ -86,24 +95,24 @@ class PoolsApi extends BaseApi
 
         $params = [];
 
-        if (isset($options['page'])) {
-            $params['page'] = $options['page'];
-        }
-
         if (isset($options['limit'])) {
             $params['limit'] = $options['limit'];
         }
 
         if (isset($options['orderBy'])) {
-            $params['order_by'] = $options['orderBy'];
+            $params['order_by'] = SearchParams::mapPoolSortField($options['orderBy']);
         }
 
         if (isset($options['sort'])) {
             $params['sort'] = $options['sort'];
         }
 
-        $response = $this->get("/networks/{$networkId}/pools", $params);
-        
+        if (isset($options['cursor'])) {
+            $params['cursor'] = $options['cursor'];
+        }
+
+        $response = $this->get("/networks/{$networkId}/pools/search", $params);
+
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
 
@@ -253,11 +262,17 @@ class PoolsApi extends BaseApi
     /**
      * Filter pools on a network by volume, liquidity, transactions, and creation date
      *
+     * Backed by the unified /networks/{network}/pools/search endpoint, which is
+     * cursor-paginated and returns {@code results[], has_next_page, next_cursor, query}.
+     * Legacy sort-field values and legacy filter parameter names are mapped to the
+     * canonical search names so requests do not 400.
+     *
      * @param string $networkId Network ID (e.g., ethereum, solana)
      * @param array<string, mixed> $options Filter options:
-     *  - int $page: Page number for pagination (1-indexed, default: 1)
+     *  - int $page: Accepted for backward compatibility but ignored (the endpoint is cursor-based)
+     *  - string $cursor: Opaque cursor from a previous response's next_cursor
      *  - int $limit: Number of items per page (default: 10, max: 100)
-     *  - string $sortBy: Field to sort by (e.g., 'volume_24h', 'liquidity_usd', 'txns_24h')
+     *  - string $sortBy: Field to sort by (legacy values mapped, e.g. 'volume_24h' -> 'volume_usd_24h')
      *  - string $sortDir: Sort direction ('asc' or 'desc', default: 'desc')
      *  - float $volume24hMin: Minimum 24h volume in USD
      *  - float $volume24hMax: Maximum 24h volume in USD
@@ -269,7 +284,7 @@ class PoolsApi extends BaseApi
      *  - string|int $createdAfter: Only pools created after this time (Unix timestamp)
      *  - string|int $createdBefore: Only pools created before this time (Unix timestamp)
      *  - bool $asObject: Whether to return the response as an object (default: false)
-     * @return array<string, mixed>|object Filtered pools with pagination info
+     * @return array<string, mixed>|object Filtered pools (results[] + has_next_page + next_cursor)
      * @throws ValidationException If parameters are invalid
      */
     public function filterPools(string $networkId, array $options = [])
@@ -282,17 +297,17 @@ class PoolsApi extends BaseApi
 
         $params = [];
 
-        if (isset($options['page'])) {
-            $params['page'] = $options['page'];
-        }
         if (isset($options['limit'])) {
             $params['limit'] = $options['limit'];
         }
+        if (isset($options['cursor'])) {
+            $params['cursor'] = $options['cursor'];
+        }
         if (isset($options['sortBy'])) {
-            $params['sort_by'] = $options['sortBy'];
+            $params['order_by'] = SearchParams::mapPoolSortField($options['sortBy']);
         }
         if (isset($options['sortDir'])) {
-            $params['sort_dir'] = $options['sortDir'];
+            $params['sort'] = $options['sortDir'];
         }
         if (isset($options['volume24hMin'])) {
             $params['volume_24h_min'] = $options['volume24hMin'];
@@ -322,7 +337,10 @@ class PoolsApi extends BaseApi
             $params['created_before'] = $options['createdBefore'];
         }
 
-        $response = $this->get("/networks/{$networkId}/pools/filter", $params);
+        // Normalise legacy filter parameter names to their canonical search names.
+        $params = SearchParams::mapPoolFilterParams($params);
+
+        $response = $this->get("/networks/{$networkId}/pools/search", $params);
 
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
@@ -388,13 +406,17 @@ class PoolsApi extends BaseApi
     /**
      * Fetch all pools from a network page by page using a callback function
      *
+     * Walks the cursor-paginated /networks/{network}/pools/search endpoint,
+     * threading next_cursor between requests and stopping when has_next_page is false.
+     *
      * @param string $networkId Network ID (e.g., ethereum, solana)
      * @param callable $callback Function to call for each page of pools: function(array|object $pools, int $page): bool
      *                          Return false from the callback to stop pagination
      * @param array<string, mixed> $options Additional options:
+     *  - string $cursor: Opaque cursor to start from (optional)
      *  - int $limit: Number of items per page (default: 10, max: 100)
-     *  - string $orderBy: Field to order by (default: 'volume_usd')
-     *  - string $sort: Sort order (default: 'desc')
+     *  - string $orderBy: Field to order by (legacy values mapped, default: 'volume_usd_24h')
+     *  - string $sort: Sort direction ('asc' or 'desc', default: 'desc')
      *  - int $maxPages: Maximum number of pages to fetch (default: 10, use 0 for unlimited)
      *  - bool $asObject: Whether to return the response as an object (default: false)
      * @return int Total number of pages fetched
@@ -403,64 +425,51 @@ class PoolsApi extends BaseApi
     {
         $page = 0;
         $totalPages = 0;
-        $limit = $options['limit'] ?? 10;
         $maxPages = $options['maxPages'] ?? 10;
-        
-        // Set asObject and remove from options to pass to API
+
+        // Set asObject and remove iterator-only keys before passing to the API
         $asObject = $options['asObject'] ?? false;
         $apiOptions = $options;
-        unset($apiOptions['maxPages'], $apiOptions['asObject']);
-        $apiOptions['page'] = $page;
-        
+        unset($apiOptions['maxPages'], $apiOptions['asObject'], $apiOptions['cursor']);
+
+        $cursor = $options['cursor'] ?? null;
+
         do {
-            $response = $this->getNetworkPools($networkId, array_merge($apiOptions, ['asObject' => $asObject]));
-            
+            $callOptions = array_merge($apiOptions, ['asObject' => $asObject]);
+            if ($cursor !== null && $cursor !== '') {
+                $callOptions['cursor'] = $cursor;
+            }
+
+            $response = $this->getNetworkPools($networkId, $callOptions);
+
             $continueProcessing = $callback($response, $page);
             $totalPages++;
             $page++;
-            
-            // Update the page number for the next request
-            $apiOptions['page'] = $page;
-            
+
             // Check if we should continue processing
             if ($continueProcessing === false) {
                 break;
             }
-            
+
             // Check if we've reached the maximum number of pages
             if ($maxPages > 0 && $page >= $maxPages) {
                 break;
             }
-            
-            // Check if we've reached the end of available pools
+
+            // Determine the next cursor from the search response shape
             if ($asObject) {
-                if (!isset($response->pools) || count($response->pools) < $limit) {
-                    break;
-                }
-                
-                // Check if we've reached the last page based on page_info
-                if (isset($response->page_info) && 
-                    isset($response->page_info->page) && 
-                    isset($response->page_info->total_pages) && 
-                    $response->page_info->page + 1 >= $response->page_info->total_pages) {
-                    break;
-                }
+                $hasNext = $response->has_next_page ?? false;
+                $cursor = $response->next_cursor ?? null;
             } else {
-                if (!isset($response['pools']) || count($response['pools']) < $limit) {
-                    break;
-                }
-                
-                // Check if we've reached the last page based on page_info
-                if (isset($response['page_info']) && 
-                    isset($response['page_info']['page']) && 
-                    isset($response['page_info']['total_pages']) && 
-                    $response['page_info']['page'] + 1 >= $response['page_info']['total_pages']) {
-                    break;
-                }
+                $hasNext = $response['has_next_page'] ?? false;
+                $cursor = $response['next_cursor'] ?? null;
             }
-            
+
+            if (!$hasNext || $cursor === null || $cursor === '') {
+                break;
+            }
         } while (true);
-        
+
         return $totalPages;
     }
 

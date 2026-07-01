@@ -18,6 +18,31 @@ $solanaPools = $client->pools->getNetworkPools('solana', ['limit' => 10]);
 
 **See the [Migration Guide](examples/migration_guide.php) and [CHANGELOG](CHANGELOG.md) for complete details.**
 
+## Unified search endpoints (v1.2.0)
+
+`getNetworkPools()`, `filterPools()`, `getTopTokens()` and `filterTokens()` now call the
+unified `pools/search` and `tokens/search` endpoints (the previous list/filter/top
+endpoints return `410 Gone`). The public method signatures are unchanged: legacy sort
+values (for example `volume_usd`, `fdv`) and legacy filter parameter names (for example
+`volume24hMin`) are mapped to the canonical search names automatically.
+
+These endpoints are cursor-paginated, so the response shape is:
+
+```php
+$page = $client->pools->getNetworkPools('ethereum', ['limit' => 20]);
+$page['results'];        // array of items
+$page['has_next_page'];  // bool
+$page['next_cursor'];    // string|null
+
+// Fetch the next page with the cursor
+$next = $client->pools->getNetworkPools('ethereum', [
+    'limit' => 20,
+    'cursor' => $page['next_cursor'],
+]);
+```
+
+The `page` option is still accepted for backward compatibility but is ignored.
+
 ## Features
 
 - Simple and intuitive PHP interface to all DexPaprika API endpoints

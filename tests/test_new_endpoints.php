@@ -29,7 +29,8 @@ test('pools->filterPools - basic', function () use ($client) {
     ]);
     assert(isset($result['results']), 'Missing results key');
     assert(count($result['results']) > 0, 'No results');
-    assert(isset($result['page_info']), 'Missing page_info');
+    assert(array_key_exists('has_next_page', $result), 'Missing has_next_page');
+    assert(array_key_exists('next_cursor', $result), 'Missing next_cursor');
     $pool = $result['results'][0];
     assert(isset($pool['id']), 'Pool missing id');
     assert(isset($pool['tokens']), 'Pool missing tokens');
@@ -51,13 +52,12 @@ test('pools->filterPools - multiple params', function () use ($client) {
 // 2. Top Tokens
 test('tokens->getTopTokens - basic', function () use ($client) {
     $result = $client->tokens->getTopTokens('ethereum', ['limit' => 5]);
-    assert(isset($result['tokens']), 'Missing tokens key');
-    assert(count($result['tokens']) > 0, 'No tokens');
-    assert(isset($result['page_info']), 'Missing page_info');
-    $token = $result['tokens'][0];
+    assert(isset($result['results']), 'Missing results key');
+    assert(count($result['results']) > 0, 'No tokens');
+    assert(array_key_exists('has_next_page', $result), 'Missing has_next_page');
+    $token = $result['results'][0];
     assert(isset($token['address']), 'Token missing address');
-    assert(isset($token['symbol']), 'Token missing symbol');
-    echo "   Top token: {$token['symbol']} at \${$token['price_usd']}\n";
+    echo "   Top token: {$token['address']} at \${$token['price_usd']}\n";
 });
 
 test('tokens->getTopTokens - with sort', function () use ($client) {
@@ -66,8 +66,8 @@ test('tokens->getTopTokens - with sort', function () use ($client) {
         'sort' => 'asc',
         'limit' => 3,
     ]);
-    assert(isset($result['tokens']), 'Missing tokens');
-    echo "   Got " . count($result['tokens']) . " tokens (asc)\n";
+    assert(isset($result['results']), 'Missing results');
+    echo "   Got " . count($result['results']) . " tokens (asc)\n";
 });
 
 // 3. Token Filter
@@ -76,13 +76,13 @@ test('tokens->filterTokens - basic', function () use ($client) {
         'volume24hMin' => 100000,
         'limit' => 5,
     ]);
-    // The token filter endpoint returns its rows under a 'data' key (not 'results')
-    assert(isset($result['data']), 'Missing data key');
-    assert(count($result['data']) > 0, 'No results');
-    assert(isset($result['page_info']), 'Missing page_info');
-    $token = $result['data'][0];
+    // The tokens/search endpoint returns its rows under a 'results' key
+    assert(isset($result['results']), 'Missing results key');
+    assert(count($result['results']) > 0, 'No results');
+    assert(array_key_exists('has_next_page', $result), 'Missing has_next_page');
+    $token = $result['results'][0];
     assert(isset($token['address']), 'Token missing address');
-    echo "   Got " . count($result['data']) . " filtered tokens\n";
+    echo "   Got " . count($result['results']) . " filtered tokens\n";
 });
 
 test('tokens->filterTokens - with FDV', function () use ($client) {
@@ -91,8 +91,8 @@ test('tokens->filterTokens - with FDV', function () use ($client) {
         'fdvMin' => 1000000,
         'limit' => 3,
     ]);
-    assert(isset($result['data']), 'Missing data');
-    echo "   Got " . count($result['data']) . " tokens with FDV filter\n";
+    assert(isset($result['results']), 'Missing results');
+    echo "   Got " . count($result['results']) . " tokens with FDV filter\n";
 });
 
 // 4. Multi Prices
@@ -130,7 +130,7 @@ test('existing: networks->getNetworks', function () use ($client) {
 
 test('existing: pools->getNetworkPools', function () use ($client) {
     $pools = $client->pools->getNetworkPools('ethereum', ['limit' => 2]);
-    assert(isset($pools['pools']), 'Missing pools');
+    assert(isset($pools['results']), 'Missing results');
 });
 
 test('existing: utils->getStats', function () use ($client) {
