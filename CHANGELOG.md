@@ -4,9 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2026-06-30
+## [1.4.0] - 2026-07-01
+
+Version jumps from the previous `v1.3.0` release tag straight to `1.4.0` (the migration below was first tagged `v1.2.0`, which sorted under the existing `v1.3.0`; `1.4.0` supersedes both so Composer serves the migrated code).
 
 ### Changed
+- **Deprecation errors now surface the replacement**: on a removed-endpoint response the SDK builds `DeprecationException` from the API body's `message` and appends `Use <replacement> instead.` (previously the message was the literal `"Unknown error"`), and exposes `DeprecationException::getReplacement()`. Generic: it keys on any error body carrying a `replacement` field.
 - **Unified search endpoints**: `PoolsApi::getNetworkPools()` and `PoolsApi::filterPools()` now call `/networks/{network}/pools/search`; `TokensApi::getTopTokens()` and `TokensApi::filterTokens()` now call `/networks/{network}/tokens/search`. The previous list/filter/top endpoints return `410 Gone`.
 - **Cursor pagination**: these four methods now return `results`, `has_next_page` and `next_cursor` instead of `pools`/`tokens` plus `page_info`. The `page` option is still accepted but ignored; pass `cursor` to page through results.
 - **Filter methods** now send `order_by` + `sort` (previously `sort_by` + `sort_dir`).
