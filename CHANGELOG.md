@@ -4,7 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2026-06-30
+## [1.4.0] - 2026-07-01
+
+Version jumps from the previous `v1.3.0` release tag straight to `1.4.0` (the migration work below was first tagged `v1.2.0`, which sorted below the existing `v1.3.0`; `1.4.0` supersedes both so Composer serves the migrated code).
 
 ### Changed
 - **Unified search endpoints**: `PoolsApi::getNetworkPools()` and `PoolsApi::filterPools()` now call `/networks/{network}/pools/search`; `TokensApi::getTopTokens()` and `TokensApi::filterTokens()` now call `/networks/{network}/tokens/search`. The previous list/filter/top endpoints return `410 Gone`.
@@ -12,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Filter methods** now send `order_by` + `sort` (previously `sort_by` + `sort_dir`).
 - Public method signatures are unchanged. Legacy sort values (e.g. `volume_usd`, `transactions`, `fdv`, `price_usd`) and legacy filter parameter names (e.g. `volume24hMin` -> `volume_usd_24h_min`) are mapped to the canonical search names automatically so requests do not return `400`.
 - `Paginator` now understands cursor-paginated responses (`has_next_page`/`next_cursor`) in addition to offset-based `page_info`.
-- Updated SDK VERSION constant to 1.2.0.
+- Bumped SDK VERSION constant to 1.4.0.
 
 ### Added
 - `DexPaprika\Utils\SearchParams` helper with shared, pure sort-field and filter-parameter mappers used by pools and tokens.
