@@ -383,9 +383,20 @@ abstract class BaseApi
      */
     protected function createExceptionFromResponse(int $statusCode, ?array $errorData = null): DexPaprikaApiException
     {
-        $message = $errorData['error'] ?? 'Unknown error';
-        
-        return match (true) {
+        // Prefer the API's "message" field; fall back to legacy "error", then a generic label.
+        // The "??" chain is null-safe even when $errorData is null.
+        $message = $errorData['message'] ?? $errorData['error'] ?? 'Unknown error';
+
+        // Generic deprecation self-documentation: any error whose body carries a
+        // "replacement" hint (regardless of status code) gets that hint surfaced in
+        // the message, so future deprecations document their own migration path.
+        $replacement = null;
+        if (isset($errorData['replacement']) && is_string($errorData['replacement']) && $errorData['replacement'] !== '') {
+            $replacement = $errorData['replacement'];
+            $message .= ' Use ' . $replacement . ' instead.';
+        }
+
+        $exception = match (true) {
             $statusCode === 404 => new NotFoundException($message, $statusCode, $errorData),
             $statusCode === 401 => new AuthenticationException($message, $statusCode, $errorData),
             $statusCode === 410 => new DeprecationException($message, $statusCode, $errorData),
@@ -394,5 +405,12 @@ abstract class BaseApi
             $statusCode >= 400 => new ClientException($message, $statusCode, $errorData),
             default => new DexPaprikaApiException($message, $statusCode, $errorData),
         };
+
+        // Enrich the typed deprecation error with a direct replacement accessor.
+        if ($replacement !== null && $exception instanceof DeprecationException) {
+            $exception->setReplacement($replacement);
+        }
+
+        return $exception;
     }
 }
