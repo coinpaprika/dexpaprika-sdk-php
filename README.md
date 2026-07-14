@@ -46,7 +46,7 @@ The `page` option is still accepted for backward compatibility but is ignored.
 ## Features
 
 - Simple and intuitive PHP interface to all DexPaprika API endpoints
-- Access data from 33+ blockchain networks
+- Access data from 36+ blockchain networks
 - Query information about DEXes, liquidity pools, and tokens
 - Get detailed price information, trading volume, and transactions
 - **Filter pools and tokens** by volume, liquidity, FDV, transactions, and creation date
