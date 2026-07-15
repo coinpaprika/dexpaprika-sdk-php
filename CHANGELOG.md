@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **API endpoint removed (410 Gone)**: `GET /networks/{network}/tokens/{address}/pools` was removed by DexPaprika. `TokensApi::getTokenPools()` (and its aliases `listTokenPools()`, `getTokenPairs()`, `listTokenPairs()`) now call the unified `/networks/{network}/pools/search` endpoint with its new `token_address` parameter. Method signatures are unchanged.
 - **Cursor pagination**: `getTokenPools()` now returns `results`, `has_next_page` and `next_cursor` instead of `pools` plus `page_info`. The `page` option is still accepted but ignored; pass `cursor` to page through results. `fetchAllTokenPools()` follows `next_cursor` internally.
 - **Network-scoped only**: the cross-network `/pools/search` endpoint accepts `token_address` but silently ignores it, so a network is always required.
-- **Removed options**: the `address` (pair filter) and `reorder` (pair-perspective flip) options have no `/pools/search` equivalent and are now ignored; repeating `token_address` on the API side is last-wins, not a pair filter. Filter the returned pools client-side to match a pair.
+- **Removed options**: the `address` (pair filter) and `reorder` (pair-perspective flip) options have no `/pools/search` equivalent and are now ignored. Repeating `token_address` does not act as a pair filter; the API uses only one of the values (not guaranteed by order). Filter the returned pools client-side to match a pair.
 - Legacy `orderBy` values (e.g. `volume_usd`) are mapped to the canonical search names automatically. An unknown token address returns an empty result set, not an error.
 - Updated SDK VERSION constant to 1.5.0.
 

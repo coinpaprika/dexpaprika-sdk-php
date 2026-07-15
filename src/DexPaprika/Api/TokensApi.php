@@ -69,8 +69,9 @@ class TokensApi extends BaseApi
      *
      * The removed endpoint's pair filter ($address) and metric reordering
      * ($reorder) have no /pools/search equivalent: both options are deprecated
-     * and ignored (repeating token_address is last-wins on the API side, not a
-     * pair filter). Filter the returned pools client-side to match a pair.
+     * and ignored. Repeating token_address does not act as a pair filter; the
+     * API uses only one of the values (not guaranteed by order). Filter the
+     * returned pools client-side to match a pair.
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)
      * @param string $tokenAddress Token address or identifier
