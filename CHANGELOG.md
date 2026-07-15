@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-07-15
+
+### Changed
+- **API endpoint removed (410 Gone)**: `GET /networks/{network}/tokens/{address}/pools` was removed by DexPaprika. `TokensApi::getTokenPools()` (and its aliases `listTokenPools()`, `getTokenPairs()`, `listTokenPairs()`) now call the unified `/networks/{network}/pools/search` endpoint with its new `token_address` parameter. Method signatures are unchanged.
+- **Cursor pagination**: `getTokenPools()` now returns `results`, `has_next_page` and `next_cursor` instead of `pools` plus `page_info`. The `page` option is still accepted but ignored; pass `cursor` to page through results. `fetchAllTokenPools()` follows `next_cursor` internally.
+- **Network-scoped only**: the cross-network `/pools/search` endpoint accepts `token_address` but silently ignores it, so a network is always required.
+- **Removed options**: the `address` (pair filter) and `reorder` (pair-perspective flip) options have no `/pools/search` equivalent and are now ignored; repeating `token_address` on the API side is last-wins, not a pair filter. Filter the returned pools client-side to match a pair.
+- Legacy `orderBy` values (e.g. `volume_usd`) are mapped to the canonical search names automatically. An unknown token address returns an empty result set, not an error.
+- Updated SDK VERSION constant to 1.5.0.
+
 ## [1.4.0] - 2026-07-01
 
 Version jumps from the previous `v1.3.0` release tag straight to `1.4.0` (the migration below was first tagged `v1.2.0`, which sorted under the existing `v1.3.0`; `1.4.0` supersedes both so Composer serves the migrated code).

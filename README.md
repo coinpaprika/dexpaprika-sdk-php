@@ -239,11 +239,23 @@ $tokenDetails = $client->tokens->getTokenDetails('ethereum', '0xc02aaa39b223fe8d
 // Find token by name or address
 $token = $client->tokens->findToken('ethereum', 'WETH');
 
-// Get pools containing a specific token (UPDATED in v1.3.0)
+// Get pools containing a specific token (UPDATED in v1.5.0).
+// Backed by /networks/{network}/pools/search with token_address: the filter is
+// network-scoped, rows come back under 'results', and pagination is
+// cursor-based ('cursor' option / 'next_cursor' in the response).
 $tokenPools = $client->tokens->getTokenPools('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', [
     'limit' => 20,
-    'reorder' => true  // NEW: Reorder pools so the token becomes the primary token for metrics
 ]);
+foreach ($tokenPools['results'] as $pool) {
+    echo $pool['id'] . ': ' . $pool['volume_usd_24h'] . "\n";
+}
+
+// The removed endpoint's 'address' (pair filter) and 'reorder' options have no
+// /pools/search equivalent and are ignored. To match a pair, filter client-side:
+$usdc = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+$pairPools = array_filter($tokenPools['results'], function ($pool) use ($usdc) {
+    return in_array($usdc, array_column($pool['tokens'] ?? [], 'id'), true);
+});
 ```
 
 ### Pool Filtering

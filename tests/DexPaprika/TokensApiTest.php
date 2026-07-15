@@ -105,26 +105,20 @@ class TokensApiTest extends TestCase
     public function testGetTokenPools(): void
     {
         $expectedResponse = [
-            'pools' => [
+            'results' => [
                 [
-                    'id' => 'uniswap-v2-eth-usdt',
-                    'address' => '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852',
-                    'name' => 'ETH/USDT',
+                    'id' => '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852',
+                    'chain' => 'ethereum',
                     'volume_usd_24h' => 150000000,
                 ],
                 [
-                    'id' => 'uniswap-v2-eth-dai',
-                    'address' => '0xa478c2975ab1ea89e8196811f51a7b7ade33eb11',
-                    'name' => 'ETH/DAI',
+                    'id' => '0xa478c2975ab1ea89e8196811f51a7b7ade33eb11',
+                    'chain' => 'ethereum',
                     'volume_usd_24h' => 75000000,
                 ],
             ],
-            'page_info' => [
-                'page' => 0,
-                'total_pages' => 1,
-                'items_on_page' => 2,
-                'total_items' => 2,
-            ],
+            'has_next_page' => false,
+            'next_cursor' => null,
         ];
 
         $mockClient = $this->createMockClient([
@@ -140,16 +134,49 @@ class TokensApiTest extends TestCase
         $this->assertEquals($expectedResponse, $result);
     }
 
+    public function testGetTokenPoolsUsesPoolSearchEndpoint(): void
+    {
+        // getTokenPools must hit /pools/search with token_address, drop page and
+        // the removed address/reorder params, and map legacy sort fields.
+        $mockApi = $this->getMockBuilder(TokensApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+
+        $mockApi->expects($this->once())
+            ->method('get')
+            ->with(
+                $this->equalTo('/networks/ethereum/pools/search'),
+                $this->equalTo([
+                    'token_address' => '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+                    'limit' => 5,
+                    'order_by' => 'volume_usd_24h',
+                    'sort' => 'desc',
+                ])
+            )
+            ->willReturn(['results' => [], 'has_next_page' => false, 'next_cursor' => null]);
+
+        $mockApi->getTokenPools('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', [
+            'page' => 2, // ignored: cursor-paginated
+            'limit' => 5,
+            'orderBy' => 'volume_usd', // legacy -> volume_usd_24h
+            'sort' => 'desc',
+            'address' => '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // deprecated, not sent
+            'reorder' => true, // deprecated, not sent
+        ]);
+    }
+
     public function testListTokenPools(): void
     {
         $expectedResponse = [
-            'pools' => [
+            'results' => [
                 [
-                    'id' => 'uniswap-v2-eth-usdt',
-                    'address' => '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852',
-                    'name' => 'ETH/USDT',
+                    'id' => '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852',
+                    'chain' => 'ethereum',
                 ],
             ],
+            'has_next_page' => false,
+            'next_cursor' => null,
         ];
 
         $mockClient = $this->createMockClient([
@@ -165,13 +192,14 @@ class TokensApiTest extends TestCase
     public function testGetTokenPairs(): void
     {
         $expectedResponse = [
-            'pools' => [
+            'results' => [
                 [
-                    'id' => 'uniswap-v2-eth-usdt',
-                    'address' => '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852',
-                    'name' => 'ETH/USDT',
+                    'id' => '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852',
+                    'chain' => 'ethereum',
                 ],
             ],
+            'has_next_page' => false,
+            'next_cursor' => null,
         ];
 
         $mockClient = $this->createMockClient([
@@ -187,13 +215,14 @@ class TokensApiTest extends TestCase
     public function testListTokenPairs(): void
     {
         $expectedResponse = [
-            'pools' => [
+            'results' => [
                 [
-                    'id' => 'uniswap-v2-eth-usdt',
-                    'address' => '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852',
-                    'name' => 'ETH/USDT',
+                    'id' => '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852',
+                    'chain' => 'ethereum',
                 ],
             ],
+            'has_next_page' => false,
+            'next_cursor' => null,
         ];
 
         $mockClient = $this->createMockClient([
@@ -209,35 +238,25 @@ class TokensApiTest extends TestCase
     public function testFetchAllTokenPools(): void
     {
         $response1 = [
-            'pools' => [
+            'results' => [
                 [
-                    'id' => 'uniswap-v2-eth-usdt',
-                    'address' => '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852',
-                    'name' => 'ETH/USDT',
+                    'id' => '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852',
+                    'chain' => 'ethereum',
                 ],
             ],
-            'page_info' => [
-                'page' => 0,
-                'total_pages' => 2,
-                'items_on_page' => 1,
-                'total_items' => 2,
-            ],
+            'has_next_page' => true,
+            'next_cursor' => 'cursor-page-2',
         ];
 
         $response2 = [
-            'pools' => [
+            'results' => [
                 [
-                    'id' => 'uniswap-v2-eth-dai',
-                    'address' => '0xa478c2975ab1ea89e8196811f51a7b7ade33eb11',
-                    'name' => 'ETH/DAI',
+                    'id' => '0xa478c2975ab1ea89e8196811f51a7b7ade33eb11',
+                    'chain' => 'ethereum',
                 ],
             ],
-            'page_info' => [
-                'page' => 1,
-                'total_pages' => 2,
-                'items_on_page' => 1,
-                'total_items' => 2,
-            ],
+            'has_next_page' => false,
+            'next_cursor' => null,
         ];
 
         // Create a partial mock of TokensApi that will only mock the getTokenPools method
@@ -245,22 +264,28 @@ class TokensApiTest extends TestCase
             ->setConstructorArgs([$this->createMockClient([])])
             ->onlyMethods(['getTokenPools'])
             ->getMock();
-            
-        // Setup the mock to return our predefined responses
+
+        // Setup the mock to return our predefined responses and verify the
+        // second call carries the cursor from the first response
         $api->expects($this->exactly(2))
             ->method('getTokenPools')
             ->willReturnCallback(function($networkId, $tokenAddress, $options) use ($response1, $response2) {
                 static $callCount = 0;
                 $callCount++;
-                return ($callCount === 1) ? $response1 : $response2;
+                if ($callCount === 1) {
+                    $this->assertArrayNotHasKey('cursor', $options);
+                    return $response1;
+                }
+                $this->assertSame('cursor-page-2', $options['cursor'] ?? null);
+                return $response2;
             });
-        
+
         $poolsCollected = [];
         $totalPages = $api->fetchAllTokenPools(
-            'ethereum', 
-            '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', 
+            'ethereum',
+            '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
             function ($poolsPage, $page) use (&$poolsCollected) {
-                $poolsCollected = array_merge($poolsCollected, $poolsPage['pools']);
+                $poolsCollected = array_merge($poolsCollected, $poolsPage['results']);
                 // Return false after the first page to stop pagination
                 return $page < 1; // Only continue for the first page (index 0)
             },
@@ -269,26 +294,21 @@ class TokensApiTest extends TestCase
 
         $this->assertEquals(2, $totalPages);
         $this->assertCount(2, $poolsCollected);
-        $this->assertEquals('uniswap-v2-eth-usdt', $poolsCollected[0]['id']);
-        $this->assertEquals('uniswap-v2-eth-dai', $poolsCollected[1]['id']);
+        $this->assertEquals('0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852', $poolsCollected[0]['id']);
+        $this->assertEquals('0xa478c2975ab1ea89e8196811f51a7b7ade33eb11', $poolsCollected[1]['id']);
     }
 
     public function testFetchAllTokenPoolsWithStopCondition(): void
     {
         $response1 = [
-            'pools' => [
+            'results' => [
                 [
-                    'id' => 'uniswap-v2-eth-usdt',
-                    'address' => '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852',
-                    'name' => 'ETH/USDT',
+                    'id' => '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852',
+                    'chain' => 'ethereum',
                 ],
             ],
-            'page_info' => [
-                'page' => 0,
-                'total_pages' => 2,
-                'items_on_page' => 1,
-                'total_items' => 2,
-            ],
+            'has_next_page' => true,
+            'next_cursor' => 'cursor-page-2',
         ];
 
         $mockClient = $this->createMockClient([
@@ -296,13 +316,13 @@ class TokensApiTest extends TestCase
         ]);
 
         $api = new TokensApi($mockClient);
-        
+
         $poolsCollected = [];
         $totalPages = $api->fetchAllTokenPools(
-            'ethereum', 
-            '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', 
+            'ethereum',
+            '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
             function ($poolsPage, $page) use (&$poolsCollected) {
-                $poolsCollected = array_merge($poolsCollected, $poolsPage['pools']);
+                $poolsCollected = array_merge($poolsCollected, $poolsPage['results']);
                 return false; // Stop after first page
             },
             ['limit' => 1]
