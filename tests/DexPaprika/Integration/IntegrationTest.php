@@ -75,16 +75,37 @@ class IntegrationTest extends TestCase
     
     public function testGetTokenPools(): void
     {
-        // Note: This test assumes that Ethereum network and WETH token exist
+        // Note: This test assumes that Ethereum network and WETH token exist.
+        // Token pools come from the cursor-paginated /pools/search endpoint.
+        $weth = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
         $tokenPools = $this->client->tokens->getTokenPools(
-            'ethereum', 
-            '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+            'ethereum',
+            $weth,
             ['limit' => 3]
         );
-        
+
         $this->assertIsArray($tokenPools);
-        $this->assertArrayHasKey('pools', $tokenPools);
-        $this->assertLessThanOrEqual(3, count($tokenPools['pools']));
+        $this->assertArrayHasKey('results', $tokenPools);
+        $this->assertArrayHasKey('has_next_page', $tokenPools);
+        $this->assertNotEmpty($tokenPools['results']);
+        $this->assertLessThanOrEqual(3, count($tokenPools['results']));
+
+        // Every returned pool must contain the requested token
+        foreach ($tokenPools['results'] as $pool) {
+            $tokenIds = array_column($pool['tokens'] ?? [], 'id');
+            $this->assertContains($weth, $tokenIds);
+        }
+
+        // Follow the cursor to the next page
+        if (($tokenPools['has_next_page'] ?? false) && !empty($tokenPools['next_cursor'])) {
+            $nextPage = $this->client->tokens->getTokenPools(
+                'ethereum',
+                $weth,
+                ['limit' => 3, 'cursor' => $tokenPools['next_cursor']]
+            );
+            $this->assertNotEmpty($nextPage['results']);
+            $this->assertNotEquals($tokenPools['results'][0]['id'], $nextPage['results'][0]['id']);
+        }
     }
     
     public function testGetTopPools(): void

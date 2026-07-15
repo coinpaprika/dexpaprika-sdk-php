@@ -81,16 +81,22 @@ try {
     echo "- Price: $" . number_format($weth['price_usd'], 2) . "\n";
     echo "- 24h Volume: $" . number_format($weth['volume_usd_24h'], 2) . "\n";
     
-    // Get pools for WETH-USDC pair
+    // Get top pools containing WETH (network-scoped /pools/search filter,
+    // cursor-paginated: rows under 'results'). The old pair filter ('address')
+    // was removed with the /tokens/{address}/pools endpoint, so match pairs
+    // client-side instead.
     echo "\nTop WETH-USDC Pools:\n";
     $usdcAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
-    $wethUsdcPools = $client->tokens->getTokenPools('ethereum', $wethAddress, [
-        'limit' => 3,
-        'address' => $usdcAddress
+    $wethPools = $client->tokens->getTokenPools('ethereum', $wethAddress, [
+        'limit' => 10,
     ]);
-    
-    foreach ($wethUsdcPools['pools'] as $index => $pool) {
-        echo ($index + 1) . ". {$pool['dex_name']}: $" . number_format($pool['volume_usd'], 2) . " 24h volume\n";
+
+    $wethUsdcPools = array_values(array_filter($wethPools['results'], function ($pool) use ($usdcAddress) {
+        return in_array($usdcAddress, array_column($pool['tokens'] ?? [], 'id'), true);
+    }));
+
+    foreach (array_slice($wethUsdcPools, 0, 3) as $index => $pool) {
+        echo ($index + 1) . ". {$pool['dex_name']}: $" . number_format($pool['volume_usd_24h'], 2) . " 24h volume\n";
     }
 
 } catch (NotFoundException $e) {
