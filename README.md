@@ -69,7 +69,7 @@ The `page` option is still accepted for backward compatibility but is ignored.
 Install via Composer:
 
 ```bash
-composer require your-vendor/dexpaprika-sdk-php
+composer require coinpaprika/dexpaprika-sdk
 ```
 
 ## Basic Usage
