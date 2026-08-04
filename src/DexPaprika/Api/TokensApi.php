@@ -25,7 +25,7 @@ class TokensApi extends BaseApi
             'tokenAddress' => $tokenAddress,
         ];
 
-        $response = $this->get("/tokens/$networkId/$tokenAddress", $params);
+        $response = $this->get("/networks/{$networkId}/tokens/{$tokenAddress}", $params);
         
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }

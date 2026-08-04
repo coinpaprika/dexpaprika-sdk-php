@@ -24,37 +24,36 @@ try {
     echo "DexPaprika Statistics:\n";
     $stats = $client->stats->getStats();
     echo "- {$stats['chains']} chains\n";
-    echo "- {$stats['dexes']} DEXes\n";
+    echo "- {$stats['factories']} DEX factories\n";
     echo "- {$stats['pools']} pools\n";
     echo "- {$stats['tokens']} tokens\n\n";
 
-    // Get top pools
-    echo "Top 5 Pools by Volume:\n";
-    $topPools = $client->pools->getTopPools(['limit' => 5]);
-    foreach ($topPools['pools'] as $index => $pool) {
-        $tokenPair = count($pool['tokens']) >= 2 
-            ? "{$pool['tokens'][0]['symbol']}/{$pool['tokens'][1]['symbol']}" 
-            : "Unknown Pair";
-        
-        $volume = isset($pool['volume_usd']) 
-            ? "$" . number_format($pool['volume_usd'], 2) 
+    // Get top pools on a network. The global /pools endpoint was removed and
+    // returns 410, so pools are network-scoped now. The response is cursor
+    // paginated: rows arrive under 'results', not 'pools'.
+    echo "Top 5 Ethereum Pools by 24h Volume:\n";
+    $topPools = $client->pools->getNetworkPools('ethereum', ['limit' => 5]);
+    foreach ($topPools['results'] as $index => $pool) {
+        $volume = isset($pool['volume_usd_24h'])
+            ? "$" . number_format($pool['volume_usd_24h'], 2)
             : "N/A";
-        
-        echo ($index + 1) . ". {$tokenPair} on {$pool['dex_name']} ({$pool['chain']}): {$volume} 24h volume\n";
+
+        echo ($index + 1) . ". {$pool['id']} on {$pool['dex_name']} ({$pool['chain']}): {$volume} 24h volume\n";
     }
     echo "\n";
 
     // Get DEXes on Ethereum
     echo "DEXes on Ethereum:\n";
-    $ethDexes = $client->networks->getNetworkDexes('ethereum', ['limit' => 5]);
+    $ethDexes = $client->dexes->getNetworkDexes('ethereum', ['limit' => 5]);
     foreach ($ethDexes['dexes'] as $index => $dex) {
-        echo ($index + 1) . ". {$dex['name']} (ID: {$dex['id']})\n";
+        echo ($index + 1) . ". {$dex['dex_name']} (ID: {$dex['dex_id']})\n";
     }
     echo "\n";
 
-    // Get pools on Ethereum Uniswap V3
+    // Get pools on Ethereum Uniswap V3. getDexPools lives on the dexes API,
+    // and DEX ids use underscores: uniswap_v3, not uniswap-v3.
     echo "Top 5 Uniswap V3 Pools on Ethereum:\n";
-    $uniswapPools = $client->pools->getDexPools('ethereum', 'uniswap-v3', ['limit' => 5]);
+    $uniswapPools = $client->dexes->getDexPools('ethereum', 'uniswap_v3', ['limit' => 5]);
     foreach ($uniswapPools['pools'] as $index => $pool) {
         $tokenPair = count($pool['tokens']) >= 2 
             ? "{$pool['tokens'][0]['symbol']}/{$pool['tokens'][1]['symbol']}" 
@@ -71,15 +70,15 @@ try {
     // Search for a token
     echo "Searching for 'ethereum':\n";
     $searchResults = $client->search->search('ethereum');
-    echo "Found {$searchResults['summary']['total_tokens']} tokens and {$searchResults['summary']['total_pools']} pools\n\n";
+    echo "Found " . count($searchResults['tokens']) . " tokens and " . count($searchResults['pools']) . " pools\n\n";
 
-    // Get token details for WETH
+    // Get token details for WETH. Price and volume live under 'summary'.
     echo "WETH Token Details:\n";
     $wethAddress = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
     $weth = $client->tokens->getTokenDetails('ethereum', $wethAddress);
     echo "- Name: {$weth['name']} ({$weth['symbol']})\n";
-    echo "- Price: $" . number_format($weth['price_usd'], 2) . "\n";
-    echo "- 24h Volume: $" . number_format($weth['volume_usd_24h'], 2) . "\n";
+    echo "- Price: $" . number_format($weth['summary']['price_usd'], 2) . "\n";
+    echo "- 24h Volume: $" . number_format($weth['summary']['24h']['volume_usd'], 2) . "\n";
     
     // Get top pools containing WETH (network-scoped /pools/search filter,
     // cursor-paginated: rows under 'results'). The old pair filter ('address')
