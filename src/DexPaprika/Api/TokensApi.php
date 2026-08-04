@@ -43,14 +43,13 @@ class TokensApi extends BaseApi
     {
         $result = $this->getTokenDetails($networkId, $tokenAddress, ['asObject' => $asObject]);
         
-        if ($asObject) {
-            if (!isset($result->token)) {
-                throw new NotFoundException("Token with address $tokenAddress not found on network $networkId");
-            }
-        } else {
-            if (!isset($result['token'])) {
-                throw new NotFoundException("Token with address $tokenAddress not found on network $networkId");
-            }
+        // The endpoint returns the token at the top level, so `id` is what tells us
+        // we got one. A missing address answers 404, which BaseApi already turns
+        // into a NotFoundException; this covers a 200 carrying something else.
+        $found = $asObject ? isset($result->id) : isset($result['id']);
+
+        if (!$found) {
+            throw new NotFoundException("Token with address $tokenAddress not found on network $networkId");
         }
         
         return $result;
