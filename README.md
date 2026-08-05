@@ -2,16 +2,16 @@
 
 A PHP SDK for interacting with the DexPaprika API, providing access to cryptocurrency DEX data, token information, liquidity pools, and market statistics.
 
-## ⚠️ Breaking Changes in v1.3.0
+## Breaking changes in v1.3.0
 
 **IMPORTANT**: The global `/pools` endpoint has been deprecated in DexPaprika API v1.3.0. All pool operations now require a network parameter.
 
 ### Migration Required
 ```php
-// ❌ OLD - No longer works
+// OLD - No longer works
 $pools = $client->pools->getTopPools(['limit' => 10]);
 
-// ✅ NEW - Network-specific approach
+// NEW - Network-specific approach
 $ethereumPools = $client->pools->getNetworkPools('ethereum', ['limit' => 10]);
 $solanaPools = $client->pools->getNetworkPools('solana', ['limit' => 10]);
 ```
@@ -46,7 +46,7 @@ The `page` option is still accepted for backward compatibility but is ignored.
 ## Features
 
 - Simple and intuitive PHP interface to all DexPaprika API endpoints
-- Access data from 36+ blockchain networks
+- Access data from 36 blockchain networks
 - Query information about DEXes, liquidity pools, and tokens
 - Get detailed price information, trading volume, and transactions
 - **Filter pools and tokens** by volume, liquidity, FDV, transactions, and creation date

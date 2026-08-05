@@ -8,6 +8,7 @@ use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use Psr\Http\Message\ResponseInterface;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\BadResponseException;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use Psr\Log\LoggerInterface;
@@ -305,7 +306,11 @@ abstract class BaseApi
                 $shouldRetry = true;
                 $this->logger->warning('Connection failed', ['exception' => $e->getMessage(), 'attempt' => $retryCount + 1]);
             } catch (RequestException $e) {
-                $response = $e->getResponse();
+                // Guzzle 8 removed RequestException::getResponse(). Only
+                // BadResponseException carries a response, so a timeout or a
+                // transport failure has to fall through to the network branch
+                // below instead of fataling here.
+                $response = $e instanceof BadResponseException ? $e->getResponse() : null;
                 $statusCode = $response ? $response->getStatusCode() : 0;
                 
                 // Only retry on server errors (5xx) and rate limiting (429)

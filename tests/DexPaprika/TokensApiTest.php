@@ -22,16 +22,17 @@ class TokensApiTest extends TestCase
 
     public function testGetTokenDetails(): void
     {
+        // Shape copied from a live GET /networks/ethereum/tokens/0xc02aaa...,
+        // which returns the token at the top level with no wrapper key.
         $expectedResponse = [
-            'token' => [
-                'id' => 'eth-ethereum',
-                'name' => 'Ethereum',
-                'symbol' => 'ETH',
-                'address' => '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-                'market_data' => [
-                    'price_usd' => 3500.45,
-                    'volume_24h_usd' => 1200000000,
-                ],
+            'id' => '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+            'name' => 'Wrapped Ether',
+            'symbol' => 'WETH',
+            'chain' => 'ethereum',
+            'decimals' => 18,
+            'price_stats' => [
+                'high_24h' => 1885.8392874243973,
+                'low_24h' => 1843.5637556909835,
             ],
         ];
 
@@ -48,12 +49,10 @@ class TokensApiTest extends TestCase
     public function testGetTokenDetailsWithObjectTransformation(): void
     {
         $expectedResponse = [
-            'token' => [
-                'id' => 'eth-ethereum',
-                'name' => 'Ethereum',
-                'symbol' => 'ETH',
-                'address' => '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-            ],
+            'id' => '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+            'name' => 'Wrapped Ether',
+            'symbol' => 'WETH',
+            'chain' => 'ethereum',
         ];
 
         $mockClient = $this->createMockClient([
@@ -64,20 +63,17 @@ class TokensApiTest extends TestCase
         $result = $api->getTokenDetails('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', ['asObject' => true]);
 
         $this->assertIsObject($result);
-        $this->assertIsObject($result->token);
-        $this->assertEquals('eth-ethereum', $result->token->id);
-        $this->assertEquals('Ethereum', $result->token->name);
+        $this->assertEquals('0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', $result->id);
+        $this->assertEquals('Wrapped Ether', $result->name);
     }
 
     public function testFindToken(): void
     {
         $expectedResponse = [
-            'token' => [
-                'id' => 'eth-ethereum',
-                'name' => 'Ethereum',
-                'symbol' => 'ETH',
-                'address' => '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-            ],
+            'id' => '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+            'name' => 'Wrapped Ether',
+            'symbol' => 'WETH',
+            'chain' => 'ethereum',
         ];
 
         $mockClient = $this->createMockClient([
@@ -93,7 +89,7 @@ class TokensApiTest extends TestCase
     public function testFindTokenThrowsExceptionWhenNotFound(): void
     {
         $mockClient = $this->createMockClient([
-            new Response(200, [], json_encode(['not_token' => []])),
+            new Response(200, [], json_encode(['message' => 'Not Found'])),
         ]);
 
         $api = new TokensApi($mockClient);

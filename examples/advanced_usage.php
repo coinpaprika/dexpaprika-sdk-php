@@ -9,152 +9,140 @@ use DexPaprika\Exception\DexPaprikaApiException;
 
 // Advanced configuration
 $config = new Config();
-$config->setResponseFormat('object') // Get objects instead of arrays
-       ->setTimeout(30)              // 30 second timeout
-       ->setUserAgent('MyApp/1.0');  // Custom user agent
+$config->setTimeout(30)     // 30 second request timeout
+       ->setMaxRetries(3);  // retry transient failures three times
 
-// Create client with configuration
-$client = new Client($config);
+// Create the client with that configuration. The config is the fourth
+// constructor argument; null keeps the default base URL and HTTP client.
+$client = new Client(null, null, true, $config);
 
 try {
     echo "===== DexPaprika PHP SDK Advanced Demo =====\n\n";
 
     // 1. Response as objects
     echo "1. Using Object Response Format\n";
-    $networks = $client->networks->getNetworks();
-    echo "First network: {$networks[0]->display_name} ({$networks[0]->id})\n\n";
+    $stats = $client->stats->getStats(['asObject' => true]);
+    echo "Indexed: {$stats->chains} chains, {$stats->factories} DEX factories\n\n";
 
-    // 2. Pagination example
+    // 2. Cursor pagination
+    //
+    // The global /pools endpoint was removed and returns 410. Pools are
+    // network-scoped now, and /networks/{network}/pools/search is cursor
+    // paginated: rows arrive under 'results', and you pass the previous
+    // response's 'next_cursor' back in to get the following page.
     echo "2. Pagination Example\n";
+    echo "Fetching Ethereum pools with cursor pagination (3 per page):\n";
+
+    $cursor = null;
     $page = 0;
-    $limit = 3;
     $totalProcessed = 0;
-    
-    echo "Fetching top pools with pagination (3 per page):\n";
-    
+
     do {
-        $poolsResponse = $client->pools->getTopPools([
-            'page' => $page,
-            'limit' => $limit,
-            'orderBy' => 'volume_usd',
-            'sort' => 'desc'
-        ]);
-        
-        $pools = $poolsResponse->pools;
-        $hasMore = count($pools) > 0;
-        
-        echo "Page {$page} results:\n";
+        $options = ['limit' => 3];
+        if ($cursor !== null) {
+            $options['cursor'] = $cursor;
+        }
+
+        $poolsResponse = $client->pools->getNetworkPools('ethereum', $options);
+        $pools = $poolsResponse['results'];
+
+        echo "Page " . ($page + 1) . " results:\n";
         foreach ($pools as $index => $pool) {
-            $tokenSymbols = [];
-            foreach ($pool->tokens as $token) {
-                $tokenSymbols[] = $token->symbol;
-            }
-            $tokenPair = implode('/', $tokenSymbols);
-            
-            echo "  " . ($totalProcessed + $index + 1) . ". {$tokenPair} on {$pool->dex_name}: $" . 
-                 number_format($pool->volume_usd, 2) . " volume\n";
+            echo "  " . ($totalProcessed + $index + 1) . ". {$pool['id']} on {$pool['dex_name']}: $" .
+                 number_format($pool['volume_usd_24h'], 2) . " 24h volume\n";
         }
-        
+
         $totalProcessed += count($pools);
+        $cursor = $poolsResponse['next_cursor'] ?? null;
         $page++;
-        
+
         // Only process 2 pages for this example
-        if ($page >= 2) {
-            $hasMore = false;
-        }
-        
+        $hasMore = $poolsResponse['has_next_page'] && $page < 2;
+
     } while ($hasMore);
-    
+
     echo "Total pools processed: {$totalProcessed}\n\n";
-    
+
     // 3. Getting historical OHLCV data
     echo "3. Historical OHLCV Data\n";
-    
-    // Find a popular ETH/USDC pool
-    $ethUsdcPools = $client->search->search('ETH/USDC')->pools;
-    
-    if (count($ethUsdcPools) > 0) {
-        $pool = $ethUsdcPools[0];
-        echo "Found pool: {$pool->name} on {$pool->dex_name} ({$pool->chain})\n";
-        
-        // Get one week of daily OHLCV data
-        $endDate = date('Y-m-d');
-        $startDate = date('Y-m-d', strtotime('-7 days'));
-        
-        echo "OHLCV data from {$startDate} to {$endDate}:\n";
-        
-        $ohlcvData = $client->pools->getPoolOHLCV(
-            $pool->chain,
-            $pool->address,
-            [
-                'start' => $startDate,
-                'end' => $endDate,
-                'interval' => '24h'
-            ]
-        );
-        
-        foreach ($ohlcvData as $candle) {
-            $date = date('Y-m-d', $candle->timestamp);
-            echo "  {$date}: Open: ${$candle->open}, Close: ${$candle->close}, " .
-                 "Volume: $" . number_format($candle->volume_usd, 2) . "\n";
-        }
-    } else {
-        echo "No ETH/USDC pools found for OHLCV example\n";
+
+    // Use the busiest Ethereum pool from the first page above
+    $topPools = $client->pools->getNetworkPools('ethereum', ['limit' => 1]);
+    $pool = $topPools['results'][0];
+
+    echo "Using pool {$pool['id']} on {$pool['dex_name']} ({$pool['chain']})\n";
+
+    $startDate = date('Y-m-d', strtotime('-7 days'));
+
+    echo "Daily OHLCV since {$startDate}:\n";
+
+    // getPoolOHLCV takes the start date as its own argument, not inside the
+    // options array. The response is a plain list of candles.
+    $ohlcvData = $client->pools->getPoolOHLCV(
+        $pool['chain'],
+        $pool['id'],
+        $startDate,
+        [
+            'interval' => '24h',
+            'limit' => 7,
+        ]
+    );
+
+    foreach ($ohlcvData as $candle) {
+        echo "  {$candle['time_open']}: Open: {$candle['open']}, Close: {$candle['close']}, " .
+             "Volume: " . number_format($candle['volume']) . "\n";
     }
     echo "\n";
-    
+
     // 4. Get recent transactions for a pool
     echo "4. Recent Pool Transactions\n";
-    
-    // Use a popular pool from the search results
-    if (isset($pool)) {
-        echo "Recent transactions for {$pool->name}:\n";
-        
-        $transactions = $client->pools->getPoolTransactions(
-            $pool->chain,
-            $pool->address,
-            ['limit' => 5]
-        );
-        
-        foreach ($transactions->transactions as $index => $tx) {
-            $time = date('Y-m-d H:i:s', $tx->timestamp);
-            $action = $tx->action;
-            $amountUsd = isset($tx->amount_usd) ? '$' . number_format($tx->amount_usd, 2) : 'N/A';
-            
-            echo "  " . ($index + 1) . ". {$time} - {$action} - {$amountUsd}\n";
-        }
-    } else {
-        echo "No pool available for transaction example\n";
+    echo "Recent transactions for {$pool['id']}:\n";
+
+    $transactions = $client->pools->getPoolTransactions(
+        $pool['chain'],
+        $pool['id'],
+        ['limit' => 5]
+    );
+
+    foreach ($transactions['transactions'] as $index => $tx) {
+        $pair = "{$tx['token_0_symbol']}/{$tx['token_1_symbol']}";
+        $priceUsd = isset($tx['price_0_usd']) ? '$' . number_format($tx['price_0_usd'], 2) : 'N/A';
+
+        echo "  " . ($index + 1) . ". {$tx['created_at']} - {$pair} - {$priceUsd}\n";
     }
     echo "\n";
-    
+
     // 5. Error handling example
     echo "5. Error Handling Example\n";
-    
-    // Try to get details for a non-existent token
+
+    // Try to get details for a token that does not exist. Note that the zero
+    // address is a real record on Ethereum (native ETH), so use something the
+    // indexer has never seen.
     echo "Attempting to fetch a non-existent token...\n";
     try {
-        $invalidToken = $client->tokens->getTokenDetails(
-            'ethereum', 
-            '0x0000000000000000000000000000000000000000'
+        $client->tokens->getTokenDetails(
+            'ethereum',
+            '0x1234567890123456789012345678901234567890'
         );
+        echo "No error raised\n";
     } catch (NotFoundException $e) {
         echo "Expected error caught: " . $e->getMessage() . "\n";
+    } catch (DexPaprikaApiException $e) {
+        echo "Expected error caught: " . $e->getMessage() . " (Code: " . $e->getCode() . ")\n";
     }
-    
-    // Reset to array format to show difference
-    $client->getConfig()->setResponseFormat('array');
-    echo "\nSwitched back to array response format\n";
-    
+
+    echo "\n";
+
+    // Arrays are the default response format
     $networks = $client->networks->getNetworks();
     echo "First network: {$networks[0]['display_name']} ({$networks[0]['id']})\n";
 
 } catch (DexPaprikaApiException $e) {
     echo "API Error: " . $e->getMessage() . " (Code: " . $e->getCode() . ")\n";
-    
+
     if ($errorData = $e->getErrorData()) {
         echo "Error details: " . json_encode($errorData) . "\n";
     }
 } catch (Exception $e) {
     echo "General Error: " . $e->getMessage() . "\n";
-} 
+}

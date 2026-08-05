@@ -27,14 +27,15 @@ try {
     ]);
     
     // This line won't be reached if an error occurs
-    echo "Found " . count($pools['pools']) . " pools\n";
+    echo "Found " . count($pools['results']) . " pools\n";
 } catch (DexPaprikaApiException $e) {
     echo "Error occurred: " . $e->getMessage() . "\n";
     echo "Error code: " . $e->getCode() . "\n";
     
-    // Get additional error details if available
-    if ($e->getResponse()) {
-        echo "HTTP status code: " . $e->getResponse()->getStatusCode() . "\n";
+    // Get additional error details if available. The exception code carries
+    // the HTTP status, and getErrorData() carries the decoded response body.
+    if ($errorData = $e->getErrorData()) {
+        echo "Error details: " . json_encode($errorData) . "\n";
     }
 }
 
@@ -76,14 +77,14 @@ function fetchWithRetry($client, $maxRetries, $retryDelay) {
     while ($retries <= $maxRetries) {
         try {
             // Make the API request
-            $result = $client->pools->getTopPools(['limit' => 5]);
+            $result = $client->pools->getNetworkPools('ethereum', ['limit' => 5]);
             
             // If successful, return the result and break the loop
             echo "Request succeeded after " . $retries . " retries\n";
             return $result;
         } catch (DexPaprikaApiException $e) {
             // Check if it's a rate limit error (usually 429 Too Many Requests)
-            if ($e->getResponse() && $e->getResponse()->getStatusCode() === 429) {
+            if ($e->getCode() === 429) {
                 $retries++;
                 
                 if ($retries <= $maxRetries) {
@@ -104,7 +105,7 @@ function fetchWithRetry($client, $maxRetries, $retryDelay) {
 try {
     // Demonstrate retry logic (won't actually hit rate limits in this example)
     $result = fetchWithRetry($client, $maxRetries, $retryDelay);
-    echo "Got " . count($result['pools']) . " pools\n";
+    echo "Got " . count($result['results']) . " pools\n";
 } catch (\Exception $e) {
     echo "Error after retries: " . $e->getMessage() . "\n";
 }
@@ -116,8 +117,10 @@ echo "4. Handling connection errors:\n";
 echo "---------------------------\n";
 
 try {
-    // Create a client with a very short timeout to simulate network issues
+    // Create a client with a very short timeout to simulate network issues.
+    // An injected Guzzle client carries its own base_uri, so set it here.
     $impatientClient = new Client(null, new \GuzzleHttp\Client([
+        'base_uri' => 'https://api.dexpaprika.com',
         'timeout' => 0.001, // Extremely short timeout to force a timeout error
     ]));
     
