@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-08-05
+
+### Changed
+- **API endpoint removed (410 Gone)**: `GET /networks/{network}/dexes/{dex}/pools` was removed by DexPaprika. `DexesApi::getDexPools()` (and its aliases `listDexPools()` and `fetchAllDexPools()`) now call the unified `/networks/{network}/pools/search` endpoint with a `dex_name` filter. Method signatures are unchanged. The DEX id you pass is sent as `dex_name`, which resolves both the id (`curve`) and the display name (`Curve`).
+- **Cursor pagination**: `getDexPools()` now returns `results`, `has_next_page` and `next_cursor` instead of `pools` plus `page_info`. The `page` option is still accepted but ignored and is no longer sent on the wire; pass `cursor` to page through results. `fetchAllDexPools()` follows `next_cursor` internally.
+- **Field renames on pool rows**: the 24h volume is `volume_usd_24h`, not `volume_usd`, and the transaction count is `transactions_24h`, not `transactions`. Tokens inside a row carry `id`, `chain` and `has_image` only, so `tokens[0]['symbol']` is no longer available. Use `TokensApi::getTokenDetails()` when you need a symbol.
+- Legacy `orderBy` values (e.g. `volume_usd`) are mapped to the canonical search names automatically, so canonical fields such as `liquidity_usd` are accepted too.
+- Updated SDK VERSION constant to 1.6.0.
+
+### Fixed
+- The `DexesApiTest` mocks for `getDexPools` asserted the old `pools` plus `page_info` shape, which is why the broken method kept passing CI. They are now built from a response captured live from `/networks/ethereum/pools/search?dex_name=curve`.
+- `examples/basic_usage.php`, `examples/object_transformation.php` and `examples/pagination.php` read `pools` and `volume_usd` off the DEX pools response. They now read `results` and `volume_usd_24h`.
+
 ## [1.5.0] - 2026-07-15
 
 ### Changed

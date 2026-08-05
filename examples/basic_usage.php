@@ -51,18 +51,21 @@ try {
     echo "\n";
 
     // Get pools on Ethereum Uniswap V3. getDexPools lives on the dexes API,
-    // and DEX ids use underscores: uniswap_v3, not uniswap-v3.
+    // and DEX ids use underscores: uniswap_v3, not uniswap-v3. It runs on
+    // /networks/{network}/pools/search with a dex_name filter, so rows come
+    // back under 'results' and the 24h volume is 'volume_usd_24h'.
     echo "Top 5 Uniswap V3 Pools on Ethereum:\n";
     $uniswapPools = $client->dexes->getDexPools('ethereum', 'uniswap_v3', ['limit' => 5]);
-    foreach ($uniswapPools['pools'] as $index => $pool) {
-        $tokenPair = count($pool['tokens']) >= 2 
-            ? "{$pool['tokens'][0]['symbol']}/{$pool['tokens'][1]['symbol']}" 
+    foreach ($uniswapPools['results'] as $index => $pool) {
+        // Search rows reference tokens by id only, with no symbol.
+        $tokenPair = count($pool['tokens']) >= 2
+            ? substr($pool['tokens'][0]['id'], 0, 8) . '/' . substr($pool['tokens'][1]['id'], 0, 8)
             : "Unknown Pair";
-        
-        $volume = isset($pool['volume_usd']) 
-            ? "$" . number_format($pool['volume_usd'], 2) 
+
+        $volume = isset($pool['volume_usd_24h'])
+            ? "$" . number_format($pool['volume_usd_24h'], 2)
             : "N/A";
-        
+
         echo ($index + 1) . ". {$tokenPair}: {$volume} 24h volume\n";
     }
     echo "\n";

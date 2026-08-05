@@ -2,6 +2,40 @@
 
 A PHP SDK for interacting with the DexPaprika API, providing access to cryptocurrency DEX data, token information, liquidity pools, and market statistics.
 
+## The DEX pools endpoint is gone (v1.6.0)
+
+DexPaprika removed `GET /networks/{network}/dexes/{dex}/pools`. It returns `410 Gone`.
+`DexesApi::getDexPools()` now calls `/networks/{network}/pools/search` with a `dex_name`
+filter. The method name and its arguments are unchanged: the DEX id you pass is sent as
+`dex_name`, which resolves both the id (`curve`) and the display name (`Curve`). Prefer
+the id.
+
+The response is the cursor-paginated search shape, so rows live under `results` and the
+24h volume field is `volume_usd_24h`. There is no bare `volume_usd` and no `page_info`.
+
+```php
+// Before
+$pools = $client->dexes->getDexPools('ethereum', 'uniswap_v3', ['limit' => 15]);
+foreach ($pools['pools'] as $pool) {
+    echo $pool['volume_usd'];
+}
+
+// After
+$pools = $client->dexes->getDexPools('ethereum', 'uniswap_v3', ['limit' => 15]);
+foreach ($pools['results'] as $pool) {
+    echo $pool['id'] . ' ' . $pool['volume_usd_24h'];
+}
+
+// Page with the cursor
+$next = $client->dexes->getDexPools('ethereum', 'uniswap_v3', [
+    'limit' => 15,
+    'cursor' => $pools['next_cursor'],
+]);
+```
+
+Tokens inside a search row carry `id`, `chain` and `has_image` only. Call
+`$client->tokens->getTokenDetails($chain, $id)` if you need names or symbols.
+
 ## Breaking changes in v1.3.0
 
 **IMPORTANT**: The global `/pools` endpoint has been deprecated in DexPaprika API v1.3.0. All pool operations now require a network parameter.
@@ -212,8 +246,9 @@ $dexes = $client->dexes->getNetworkDexes('ethereum', ['limit' => 10]);
 $ethPools = $client->pools->getNetworkPools('ethereum', ['limit' => 20]);
 $solanaPools = $client->pools->getNetworkPools('solana', ['limit' => 20]);
 
-// Get pools on a specific DEX
+// Get pools on a specific DEX (cursor-paginated, rows under 'results')
 $uniswapPools = $client->dexes->getDexPools('ethereum', 'uniswap_v3', ['limit' => 15]);
+$uniswapPools['results'][0]['volume_usd_24h'];
 
 // Get detailed information about a pool
 $poolDetails = $client->pools->getPoolDetails('ethereum', '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640');

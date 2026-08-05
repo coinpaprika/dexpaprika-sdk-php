@@ -115,7 +115,7 @@ class Paginator
         $this->currentPage++;
         $pageInfo = $result['page_info'] ?? null;
         if ($pageInfo) {
-            // Legacy offset-paginated endpoints (e.g. dexes pools, transactions)
+            // Legacy offset-paginated endpoints (e.g. dexes list, transactions)
             $this->hasNext = $this->currentPage < ($pageInfo['total_pages'] ?? 0);
         } elseif (array_key_exists('has_next_page', $result)) {
             // Cursor-paginated search endpoints (pools/search, tokens/search)

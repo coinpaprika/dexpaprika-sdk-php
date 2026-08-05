@@ -31,21 +31,23 @@ try {
 
     echo "\n";
 
-    // Get pools on a DEX as objects. Rows from /networks/{network}/dexes/{dex}/pools
-    // carry the full token records, so symbols are available here.
+    // Get pools on a DEX as objects. getDexPools runs on
+    // /networks/{network}/pools/search with a dex_name filter, so rows sit
+    // under `results` and each token carries id, chain and has_image but no
+    // symbol. Use getTokenDetails() when you need a symbol.
     $pools = $client->dexes->getDexPools('ethereum', 'uniswap_v3', [
         'limit' => 3,
         'asObject' => true,
     ]);
 
     echo "Top Uniswap V3 pools by volume (using object property access):\n";
-    foreach ($pools->pools as $pool) {
-        // Access token symbols using object syntax
-        $token0Symbol = $pool->tokens[0]->symbol ?? 'Unknown';
-        $token1Symbol = $pool->tokens[1]->symbol ?? 'Unknown';
+    foreach ($pools->results as $pool) {
+        // Access token ids using object syntax
+        $token0 = substr($pool->tokens[0]->id ?? 'unknown', 0, 8);
+        $token1 = substr($pool->tokens[1]->id ?? 'unknown', 0, 8);
 
-        echo "- {$token0Symbol}/{$token1Symbol} on {$pool->dex_name} ({$pool->chain}): $" .
-             number_format($pool->volume_usd, 2) . " volume\n";
+        echo "- {$token0}/{$token1} on {$pool->dex_name} ({$pool->chain}): $" .
+             number_format($pool->volume_usd_24h, 2) . " volume\n";
     }
 
     echo "\n";
