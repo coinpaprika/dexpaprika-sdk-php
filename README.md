@@ -7,8 +7,10 @@ A PHP SDK for interacting with the DexPaprika API, providing access to cryptocur
 DexPaprika removed `GET /networks/{network}/dexes/{dex}/pools`. It returns `410 Gone`.
 `DexesApi::getDexPools()` now calls `/networks/{network}/pools/search` with a `dex_name`
 filter. The method name and its arguments are unchanged: the DEX id you pass is sent as
-`dex_name`, which resolves both the id (`curve`) and the display name (`Curve`). Prefer
-the id.
+`dex_name`. Despite that parameter's name it matches the DEX **id** from
+`GET /networks/{network}/dexes` (the `dex_id` field), case-insensitively. Passing that
+response's `dex_name` field instead, a human display name such as `Uniswap V3`, returns
+HTTP 200 with an empty result set rather than an error, so always pass the id.
 
 The response is the cursor-paginated search shape, so rows live under `results` and the
 24h volume field is `volume_usd_24h`. There is no bare `volume_usd` and no `page_info`.

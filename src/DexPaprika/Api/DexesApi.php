@@ -68,9 +68,13 @@ class DexesApi extends BaseApi
      * tokens[]. There is no bare volume_usd and no page_info.
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)
-     * @param string $dexId DEX identifier. Sent as the dex_name query parameter,
-     *                      which resolves both the id ('curve') and the display
-     *                      name ('Curve'). Prefer the id.
+     * @param string $dexId DEX identifier from GET /networks/{network}/dexes,
+     *                      the dex_id field (e.g. 'uniswap_v3'). Sent as the
+     *                      dex_name query parameter, which matches the id
+     *                      case-insensitively. Passing that response's dex_name
+     *                      field instead, a display name such as 'Uniswap V3',
+     *                      returns an empty result set rather than an error, so
+     *                      always pass the id.
      * @param array<string, mixed> $options Additional options:
      *  - int $page: Accepted for backward compatibility but ignored (the endpoint is cursor-based)
      *  - string $cursor: Opaque cursor from a previous response's next_cursor
@@ -129,7 +133,9 @@ class DexesApi extends BaseApi
      * List pools on a specific DEX (alias for getDexPools)
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)
-     * @param string $dexId DEX identifier, sent as the dex_name query parameter
+     * @param string $dexId DEX identifier (the dex_id, not the display name),
+     *                      sent as the dex_name query parameter; a display name
+     *                      returns an empty result set rather than an error
      * @param array<string, mixed> $options Additional options:
      *  - int $page: Accepted for backward compatibility but ignored (the endpoint is cursor-based)
      *  - string $cursor: Opaque cursor from a previous response's next_cursor
@@ -153,7 +159,9 @@ class DexesApi extends BaseApi
      * page number sent to the API.
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)
-     * @param string $dexId DEX identifier, sent as the dex_name query parameter
+     * @param string $dexId DEX identifier (the dex_id, not the display name),
+     *                      sent as the dex_name query parameter; a display name
+     *                      returns an empty result set rather than an error
      * @param callable $callback Function to call for each page of pools: function(array|object $pools, int $page): bool
      *                          Return false from the callback to stop pagination
      * @param array<string, mixed> $options Additional options:
