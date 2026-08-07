@@ -39,6 +39,8 @@ class SearchParams
      *
      * The 6h, 1h and 5m price-change windows are pools-only. tokens/search
      * returns 400 on them, so they must not be copied into TOKEN_SORT_CANONICAL.
+     * price_change_percentage_24h belongs in both tables and is not part of that
+     * asymmetry.
      *
      * @var array<int, string>
      */

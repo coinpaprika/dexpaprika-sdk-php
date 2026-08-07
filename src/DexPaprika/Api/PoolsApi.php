@@ -269,8 +269,12 @@ class PoolsApi extends BaseApi
      *
      * The price-change bounds are read as percentages and negative values are the
      * common case: "down at least 20 percent in the last hour" is
-     * {@code 'priceChangePercentage1hMax' => -20}. These four windows are pools-only;
-     * tokens/search rejects them.
+     * {@code 'priceChangePercentage1hMax' => -20}.
+     *
+     * Only the 6h, 1h and 5m windows are pools-only. tokens/search returns 400 on
+     * those three sort fields and ignores their bounds. The 24h window works on
+     * both endpoints, which is why {@see TokensApi::filterTokens()} carries the
+     * same 24h pair.
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)
      * @param array<string, mixed> $options Filter options:
