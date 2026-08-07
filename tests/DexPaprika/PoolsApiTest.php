@@ -190,6 +190,74 @@ class PoolsApiTest extends TestCase
         ]);
     }
 
+    public function testFilterPoolsSendsPriceChangeBounds(): void
+    {
+        // pools/search answers 200 and ignores query parameters it does not know,
+        // so a bound the SDK forgets to send comes back as a plausible unfiltered
+        // list rather than an error. Pin all eight names and keep the negatives
+        // negative.
+        $mockApi = $this->getMockBuilder(PoolsApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+
+        $mockApi->expects($this->once())
+            ->method('get')
+            ->with(
+                $this->equalTo('/networks/ethereum/pools/search'),
+                $this->equalTo([
+                    'limit' => 10,
+                    'order_by' => 'price_change_percentage_1h',
+                    'sort' => 'desc',
+                    'price_change_percentage_24h_min' => -80,
+                    'price_change_percentage_24h_max' => -20,
+                    'price_change_percentage_6h_min' => -15.5,
+                    'price_change_percentage_6h_max' => 40,
+                    'price_change_percentage_1h_min' => 50,
+                    'price_change_percentage_1h_max' => 500,
+                    'price_change_percentage_5m_min' => 1,
+                    'price_change_percentage_5m_max' => 3,
+                ])
+            )
+            ->willReturn(['results' => [], 'has_next_page' => false, 'next_cursor' => null]);
+
+        $mockApi->filterPools('ethereum', [
+            'limit' => 10,
+            'sortBy' => 'price_change_percentage_1h',
+            'sortDir' => 'desc',
+            'priceChangePercentage24hMin' => -80,
+            'priceChangePercentage24hMax' => -20,
+            'priceChangePercentage6hMin' => -15.5,
+            'priceChangePercentage6hMax' => 40,
+            'priceChangePercentage1hMin' => 50,
+            'priceChangePercentage1hMax' => 500,
+            'priceChangePercentage5mMin' => 1,
+            'priceChangePercentage5mMax' => 3,
+        ]);
+    }
+
+    public function testFilterPoolsKeepsZeroPriceChangeBounds(): void
+    {
+        // isset() is the guard used throughout filterPools, so a 0 bound survives.
+        // "did not drop more than 0 percent" is a real query and empty() would eat it.
+        $mockApi = $this->getMockBuilder(PoolsApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+
+        $mockApi->expects($this->once())
+            ->method('get')
+            ->with(
+                $this->equalTo('/networks/ethereum/pools/search'),
+                $this->equalTo([
+                    'price_change_percentage_1h_min' => 0,
+                ])
+            )
+            ->willReturn(['results' => [], 'has_next_page' => false, 'next_cursor' => null]);
+
+        $mockApi->filterPools('ethereum', ['priceChangePercentage1hMin' => 0]);
+    }
+
     public function testGetNetworkPoolsValidatesNetworkId(): void
     {
         $api = new PoolsApi($this->createMockClient([]));

@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-08-07
+
+### Added
+- **Short price-change windows on pool search**: `price_change_percentage_6h`, `price_change_percentage_1h` and `price_change_percentage_5m` are now recognised as canonical `sortBy`/`orderBy` values for `PoolsApi::getNetworkPools()` and `PoolsApi::filterPools()`. Previously they fell through to the unknown-field fallback and were sent as `volume_usd_24h`, so a caller asking for the 1h sort got `200` and a full result set ordered by volume.
+- **Price-change bounds on `PoolsApi::filterPools()`**: eight new options, `priceChangePercentage{24h,6h,1h,5m}{Min,Max}`, mapping to `price_change_percentage_{24h,6h,1h,5m}_{min,max}`. `filterPools()` reads named keys, so bounds it does not name cannot be passed at all. The 24h pair is included; the endpoint already accepted it. Bounds are percentages and negative values are the common case: down at least 20 percent in the last hour is `'priceChangePercentage1hMax' => -20`.
+
+### Notes
+- These four windows are pools-only. `tokens/search` returns `400` on the 6h, 1h and 5m sort fields and token rows carry no `price_change_percentage_5m` field, so `TOKEN_SORT_CANONICAL` is deliberately unchanged and `SearchParamsTest::testShortPriceChangeWindowsArePoolOnly` pins that asymmetry.
+- `pools/search` answers `200` and ignores query parameters it does not recognise, so a missing bound returns a plausible unfiltered list rather than an error. Verified live against `api.dexpaprika.com` by comparing each bound against an unfiltered baseline.
+- Updated SDK VERSION constant to 1.6.0.
+
 ## [1.5.0] - 2026-07-15
 
 ### Changed

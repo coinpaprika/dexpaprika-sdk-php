@@ -272,6 +272,38 @@ $filtered = $client->pools->filterPools('ethereum', [
 echo "Found " . count($filtered['results']) . " pools matching criteria\n";
 ```
 
+### Price change windows (pools only)
+
+`pools/search` sorts and filters on four price-change windows: 24h, 6h, 1h and 5m.
+Pass the window as `sortBy`, or bound it with the matching min/max option. Bounds are
+percentages, and a max is normally negative because that is how you ask for a drop.
+
+```php
+// Pools that fell 10% or more in the last hour, worst first
+$dumping = $client->pools->filterPools('ethereum', [
+    'priceChangePercentage1hMax' => -10,
+    'liquidityUsdMin' => 10000,
+    'sortBy' => 'price_change_percentage_1h',
+    'sortDir' => 'asc',
+    'limit' => 10,
+]);
+
+// Fastest movers over the last five minutes
+$movers = $client->pools->getNetworkPools('ethereum', [
+    'orderBy' => 'price_change_percentage_5m',
+    'sort' => 'desc',
+    'limit' => 10,
+]);
+```
+
+Tighten either bound and the result set can legitimately come back empty, because a
+screen for a sharp hourly drop on a well funded pool matches nothing on a calm day.
+An empty `results[]` there is an answer, not a failure.
+
+The 6h, 1h and 5m windows exist on pools only. `tokens/search` returns `400` for them
+and token rows carry no `price_change_percentage_5m` field, so `getTopTokens()` and
+`filterTokens()` still take `price_change_percentage_24h` and nothing shorter.
+
 ### Top Tokens & Token Filtering
 
 ```php
