@@ -70,7 +70,7 @@ class PoolsApi extends BaseApi
      * {@code results[], has_next_page, next_cursor, query}. Each pool exposes
      * id (pool address), chain, dex_id, dex_name, fee, created_at,
      * volume_usd_24h/7d/30d, liquidity_usd, transactions_24h, price_usd,
-     * price_change_percentage_5m/1h/24h and tokens[].
+     * price_change_percentage_5m/1h/6h/24h and tokens[].
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)
      * @param array<string, mixed> $options Additional options:
@@ -260,12 +260,21 @@ class PoolsApi extends BaseApi
     }
 
     /**
-     * Filter pools on a network by volume, liquidity, transactions, and creation date
+     * Filter pools on a network by volume, liquidity, transactions, price change, and creation date
      *
      * Backed by the unified /networks/{network}/pools/search endpoint, which is
      * cursor-paginated and returns {@code results[], has_next_page, next_cursor, query}.
      * Legacy sort-field values and legacy filter parameter names are mapped to the
      * canonical search names so requests do not 400.
+     *
+     * The price-change bounds are read as percentages and negative values are the
+     * common case: "down at least 20 percent in the last hour" is
+     * {@code 'priceChangePercentage1hMax' => -20}.
+     *
+     * Only the 6h, 1h and 5m windows are pools-only. tokens/search returns 400 on
+     * those three sort fields and ignores their bounds. The 24h window works on
+     * both endpoints, which is why {@see TokensApi::filterTokens()} carries the
+     * same 24h pair.
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)
      * @param array<string, mixed> $options Filter options:
@@ -281,6 +290,14 @@ class PoolsApi extends BaseApi
      *  - float $liquidityUsdMin: Minimum liquidity in USD
      *  - float $liquidityUsdMax: Maximum liquidity in USD
      *  - int $txns24hMin: Minimum number of transactions in 24h
+     *  - float $priceChangePercentage24hMin: Minimum 24h price change, in percent
+     *  - float $priceChangePercentage24hMax: Maximum 24h price change, in percent
+     *  - float $priceChangePercentage6hMin: Minimum 6h price change, in percent
+     *  - float $priceChangePercentage6hMax: Maximum 6h price change, in percent
+     *  - float $priceChangePercentage1hMin: Minimum 1h price change, in percent
+     *  - float $priceChangePercentage1hMax: Maximum 1h price change, in percent
+     *  - float $priceChangePercentage5mMin: Minimum 5m price change, in percent
+     *  - float $priceChangePercentage5mMax: Maximum 5m price change, in percent
      *  - string|int $createdAfter: Only pools created after this time (Unix timestamp)
      *  - string|int $createdBefore: Only pools created before this time (Unix timestamp)
      *  - bool $asObject: Whether to return the response as an object (default: false)
@@ -329,6 +346,30 @@ class PoolsApi extends BaseApi
         }
         if (isset($options['txns24hMin'])) {
             $params['txns_24h_min'] = $options['txns24hMin'];
+        }
+        if (isset($options['priceChangePercentage24hMin'])) {
+            $params['price_change_percentage_24h_min'] = $options['priceChangePercentage24hMin'];
+        }
+        if (isset($options['priceChangePercentage24hMax'])) {
+            $params['price_change_percentage_24h_max'] = $options['priceChangePercentage24hMax'];
+        }
+        if (isset($options['priceChangePercentage6hMin'])) {
+            $params['price_change_percentage_6h_min'] = $options['priceChangePercentage6hMin'];
+        }
+        if (isset($options['priceChangePercentage6hMax'])) {
+            $params['price_change_percentage_6h_max'] = $options['priceChangePercentage6hMax'];
+        }
+        if (isset($options['priceChangePercentage1hMin'])) {
+            $params['price_change_percentage_1h_min'] = $options['priceChangePercentage1hMin'];
+        }
+        if (isset($options['priceChangePercentage1hMax'])) {
+            $params['price_change_percentage_1h_max'] = $options['priceChangePercentage1hMax'];
+        }
+        if (isset($options['priceChangePercentage5mMin'])) {
+            $params['price_change_percentage_5m_min'] = $options['priceChangePercentage5mMin'];
+        }
+        if (isset($options['priceChangePercentage5mMax'])) {
+            $params['price_change_percentage_5m_max'] = $options['priceChangePercentage5mMax'];
         }
         if (isset($options['createdAfter'])) {
             $params['created_after'] = $options['createdAfter'];

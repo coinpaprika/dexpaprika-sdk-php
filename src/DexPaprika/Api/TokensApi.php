@@ -210,12 +210,17 @@ class TokensApi extends BaseApi
     }
 
     /**
-     * Filter tokens on a network by volume, liquidity, FDV, transactions, and creation date
+     * Filter tokens on a network by volume, liquidity, FDV, transactions, 24h price
+     * change, and creation date
      *
      * Backed by the unified /networks/{network}/tokens/search endpoint, which is
      * cursor-paginated and returns {@code results[], has_next_page, next_cursor, query}.
      * Legacy sort-field values and legacy filter parameter names are mapped to the
      * canonical search names so requests do not 400.
+     *
+     * 24h is the only price-change window this endpoint honours. The 6h, 1h and 5m
+     * bounds are accepted with a 200 and then ignored, so they are not exposed here;
+     * {@see PoolsApi::filterPools()} has all four.
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)
      * @param array<string, mixed> $options Filter options:
@@ -230,6 +235,8 @@ class TokensApi extends BaseApi
      *  - float $fdvMin: Minimum fully diluted valuation in USD
      *  - float $fdvMax: Maximum fully diluted valuation in USD
      *  - int $txns24hMin: Minimum number of transactions in 24h
+     *  - float $priceChangePercentage24hMin: Minimum 24h price change, in percent
+     *  - float $priceChangePercentage24hMax: Maximum 24h price change, in percent
      *  - string|int $createdAfter: Only tokens created after this time (Unix timestamp)
      *  - string|int $createdBefore: Only tokens created before this time (Unix timestamp)
      *  - bool $asObject: Whether to return the response as an object (default: false)
@@ -277,6 +284,12 @@ class TokensApi extends BaseApi
         }
         if (isset($options['txns24hMin'])) {
             $params['txns_24h_min'] = $options['txns24hMin'];
+        }
+        if (isset($options['priceChangePercentage24hMin'])) {
+            $params['price_change_percentage_24h_min'] = $options['priceChangePercentage24hMin'];
+        }
+        if (isset($options['priceChangePercentage24hMax'])) {
+            $params['price_change_percentage_24h_max'] = $options['priceChangePercentage24hMax'];
         }
         if (isset($options['createdAfter'])) {
             $params['created_after'] = $options['createdAfter'];

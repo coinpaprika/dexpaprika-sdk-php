@@ -27,6 +27,26 @@ class SearchParamsTest extends TestCase
         }
     }
 
+    public function testMapPoolSortFieldPassesShortPriceChangeWindowsThrough(): void
+    {
+        // pools/search accepts these three, so they must reach the wire unchanged.
+        // If any drops out of the canonical list it silently becomes volume_usd_24h
+        // and the caller gets 200 with a result set sorted by the wrong column.
+        foreach (['price_change_percentage_6h', 'price_change_percentage_1h', 'price_change_percentage_5m'] as $field) {
+            $this->assertEquals($field, SearchParams::mapPoolSortField($field));
+        }
+    }
+
+    public function testShortPriceChangeWindowsArePoolOnly(): void
+    {
+        // tokens/search returns 400 on these windows and token rows carry no
+        // price_change_percentage_5m field at all. Adding them to the token table
+        // would turn a working request into a 400, so pin the asymmetry here.
+        foreach (['price_change_percentage_6h', 'price_change_percentage_1h', 'price_change_percentage_5m'] as $field) {
+            $this->assertEquals('volume_usd_24h', SearchParams::mapTokenSortField($field));
+        }
+    }
+
     public function testMapPoolSortFieldFallsBackToDefault(): void
     {
         $this->assertEquals('volume_usd_24h', SearchParams::mapPoolSortField('not_a_field'));
@@ -90,6 +110,25 @@ class SearchParamsTest extends TestCase
             'sort' => 'desc',
             'limit' => 10,
         ], $mapped);
+    }
+
+    public function testMapPoolFilterParamsLeavesPriceChangeBoundsAlone(): void
+    {
+        // These eight are already canonical. The rename table must not touch them,
+        // and negative bounds have to survive intact because a max on a price change
+        // is normally negative.
+        $bounds = [
+            'price_change_percentage_24h_min' => -50,
+            'price_change_percentage_24h_max' => -20,
+            'price_change_percentage_6h_min' => 5,
+            'price_change_percentage_6h_max' => 100,
+            'price_change_percentage_1h_min' => -0.5,
+            'price_change_percentage_1h_max' => 12.5,
+            'price_change_percentage_5m_min' => 1,
+            'price_change_percentage_5m_max' => 3,
+        ];
+
+        $this->assertEquals($bounds, SearchParams::mapPoolFilterParams($bounds));
     }
 
     public function testMapTokenFilterParamsRenamesLegacyKeys(): void

@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-08-07
+
+### Added
+- **Short price-change windows on pool search**: `price_change_percentage_6h`, `price_change_percentage_1h` and `price_change_percentage_5m` are now recognised as canonical `sortBy`/`orderBy` values for `PoolsApi::getNetworkPools()` and `PoolsApi::filterPools()`. Previously they fell through to the unknown-field fallback and were sent as `volume_usd_24h`, so a caller asking for the 1h sort got `200` and a full result set ordered by volume.
+- **Price-change bounds on `PoolsApi::filterPools()`**: eight new options, `priceChangePercentage{24h,6h,1h,5m}{Min,Max}`, mapping to `price_change_percentage_{24h,6h,1h,5m}_{min,max}`. `filterPools()` reads named keys, so bounds it does not name cannot be passed at all. The 24h pair is included; the endpoint already accepted it. Bounds are percentages and negative values are the common case: down at least 20 percent in the last hour is `'priceChangePercentage1hMax' => -20`.
+- **24h price-change bounds on `TokensApi::filterTokens()`**: `priceChangePercentage24hMin` and `priceChangePercentage24hMax`, mapping to `price_change_percentage_24h_{min,max}`. `tokens/search` has honoured this pair all along and the SDK had no way to send it.
+
+### Notes
+- Only the 6h, 1h and 5m windows are pools-only. `tokens/search` returns `400` when you sort by one of those three, ignores their filter bounds, and its rows carry no short-window price-change field, so `TOKEN_SORT_CANONICAL` is deliberately unchanged and `SearchParamsTest::testShortPriceChangeWindowsArePoolOnly` pins that asymmetry. The 24h window is different: it sorts and filters on both endpoints, which is why it lands on `filterTokens()` too.
+- Both search endpoints answer `200` and ignore query parameters they do not recognise, so a bound the SDK gets wrong returns a plausible unfiltered list rather than an error. Verified live against `api.dexpaprika.com` by comparing every bound against an unfiltered baseline, with a deliberately misspelled parameter as the control.
+- Updated SDK VERSION constant to 1.6.0.
+
 ## [1.5.0] - 2026-07-15
 
 ### Changed

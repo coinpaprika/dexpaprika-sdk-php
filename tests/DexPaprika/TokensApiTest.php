@@ -427,4 +427,62 @@ class TokensApiTest extends TestCase
             'fdvMin' => 1000000,
         ]);
     }
+
+    public function testFilterTokensSends24hPriceChangeBounds(): void
+    {
+        // tokens/search honours the 24h bounds and answers 200 while ignoring
+        // anything it does not recognise, so a typo here would look like a working
+        // filter returning an unfiltered page. Pin both names, and keep the
+        // negative max negative because a max on a price change usually is.
+        $mockApi = $this->getMockBuilder(TokensApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+
+        $mockApi->expects($this->once())
+            ->method('get')
+            ->with(
+                $this->equalTo('/networks/ethereum/tokens/search'),
+                $this->equalTo([
+                    'limit' => 5,
+                    'price_change_percentage_24h_min' => -80,
+                    'price_change_percentage_24h_max' => -20,
+                ])
+            )
+            ->willReturn(['results' => [], 'has_next_page' => false, 'next_cursor' => null]);
+
+        $mockApi->filterTokens('ethereum', [
+            'limit' => 5,
+            'priceChangePercentage24hMin' => -80,
+            'priceChangePercentage24hMax' => -20,
+        ]);
+    }
+
+    public function testFilterTokensDropsShortPriceChangeWindows(): void
+    {
+        // tokens/search accepts price_change_percentage_{6h,1h,5m}_{min,max} with a
+        // 200 and then ignores them, so sending them would promise filtering the API
+        // never does. filterTokens reads named keys, so the omission is the guard.
+        $mockApi = $this->getMockBuilder(TokensApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+
+        $mockApi->expects($this->once())
+            ->method('get')
+            ->with(
+                $this->equalTo('/networks/ethereum/tokens/search'),
+                $this->equalTo([
+                    'price_change_percentage_24h_min' => 10,
+                ])
+            )
+            ->willReturn(['results' => [], 'has_next_page' => false, 'next_cursor' => null]);
+
+        $mockApi->filterTokens('ethereum', [
+            'priceChangePercentage24hMin' => 10,
+            'priceChangePercentage6hMin' => 10,
+            'priceChangePercentage1hMin' => 10,
+            'priceChangePercentage5mMin' => 10,
+        ]);
+    }
 }
