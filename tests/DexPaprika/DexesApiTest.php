@@ -409,7 +409,7 @@ class DexesApiTest extends TestCase
             new Response(410, [], json_encode([
                 'code' => 410,
                 'message' => 'endpoint removed',
-                'replacement' => '/networks/:network/pools/search',
+                'replacement' => '/networks/{network}/pools/search',
             ])),
         ]);
 
@@ -423,8 +423,8 @@ class DexesApiTest extends TestCase
             $this->fail('Expected a DeprecationException for the removed endpoint');
         } catch (DeprecationException $e) {
             $this->assertSame(410, $e->getCode());
-            $this->assertSame('/networks/:network/pools/search', $e->getReplacement());
-            $this->assertStringContainsString('Use /networks/:network/pools/search instead.', $e->getMessage());
+            $this->assertSame('/networks/{network}/pools/search', $e->getReplacement());
+            $this->assertStringContainsString('Use /networks/{network}/pools/search instead.', $e->getMessage());
         }
     }
 

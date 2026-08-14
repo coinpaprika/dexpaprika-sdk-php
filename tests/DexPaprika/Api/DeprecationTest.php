@@ -42,7 +42,7 @@ class DeprecationTest extends TestCase
         $body = json_encode([
             'code' => 410,
             'message' => 'endpoint removed',
-            'replacement' => '/networks/:network/pools/search',
+            'replacement' => '/networks/{network}/pools/search',
         ]);
 
         $container = [];
@@ -54,10 +54,10 @@ class DeprecationTest extends TestCase
         } catch (DeprecationException $e) {
             $this->assertSame(410, $e->getCode());
             $this->assertStringContainsString('endpoint removed', $e->getMessage());
-            $this->assertStringContainsString('Use /networks/:network/pools/search instead.', $e->getMessage());
-            $this->assertSame('/networks/:network/pools/search', $e->getReplacement());
+            $this->assertStringContainsString('Use /networks/{network}/pools/search instead.', $e->getMessage());
+            $this->assertSame('/networks/{network}/pools/search', $e->getReplacement());
             $this->assertIsArray($e->getErrorData());
-            $this->assertSame('/networks/:network/pools/search', $e->getErrorData()['replacement']);
+            $this->assertSame('/networks/{network}/pools/search', $e->getErrorData()['replacement']);
             // 410 is not retryable: a single request must have been made.
             $this->assertCount(1, $container);
         }
