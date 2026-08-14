@@ -75,7 +75,7 @@ class Client
     /**
      * SDK version
      */
-    public const VERSION = '1.7.0';
+    public const VERSION = '1.8.0';
 
     /**
      * Create a new DexPaprika client
@@ -97,13 +97,21 @@ class Client
         $this->transformResponses = $transformResponses;
         
         // Initialize HTTP client if not provided
+        $headers = [
+            'Accept' => 'application/json',
+            'User-Agent' => 'dexpaprika-sdk-php/' . self::VERSION,
+        ];
+
+        $apiKey = $this->config->getApiKey();
+        if ($apiKey !== null) {
+            // The whole value, with no scheme word in front of it.
+            $headers['Authorization'] = $apiKey;
+        }
+
         $this->httpClient = $httpClient ?? new GuzzleClient([
             'base_uri' => $this->baseUrl,
             'timeout' => $this->config->getTimeout(),
-            'headers' => [
-                'Accept' => 'application/json',
-                'User-Agent' => 'dexpaprika-sdk-php/' . self::VERSION,
-            ],
+            'headers' => $headers,
         ]);
 
         // Initialize API services

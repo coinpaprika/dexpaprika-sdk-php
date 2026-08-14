@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-08-14
+
+### Added
+- **Optional API key.** `Config::setApiKey()`, falling back to the `DEXPAPRIKA_API_KEY` environment variable when no key is set. Keyless remains the default and is unchanged: without a key the client sends exactly what it sent before. The key is transmitted as the **entire** `Authorization` value, with no `Bearer` prefix and no other scheme word, because the API checksums the raw header and a scheme word returns 401.
+- `Config::getApiKey()` resolves the precedence, and `Config::API_KEY_ENV_VAR` names the variable.
+- The host is never inferred from the presence of a key. Free keys are served from the default base URL and only Pro moves to `api-pro.dexpaprika.com`, set with `setBaseUrl()`. Sending a free key to the Pro host returns 403, so guessing would break exactly the people who just registered.
+
+### Notes
+- A key carrying CR, LF or NUL is dropped rather than sanitised. A mangled key authenticates as nobody, and because the data endpoints ignore an unreadable key instead of rejecting it, the caller would never find out.
+- 12 new tests, 26 assertions, asserting on the headers that actually reach a Guzzle mock handler rather than on stored values: the bare-key format against five scheme words, keyless behaviour, precedence, whitespace trimming, header-injection rejection, the host rules, and an end-to-end pass through the real `Client` constructor.
+- A key the API cannot read is ignored rather than rejected on the data endpoints: the call returns `200` with real data while quietly serving the keyless tier. `/usage` and its `plan` field are the way to confirm a key is landing.
+
 ## [1.7.0] - 2026-08-14
 
 ### Changed

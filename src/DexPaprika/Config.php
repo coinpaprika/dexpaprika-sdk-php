@@ -12,9 +12,24 @@ use DexPaprika\Cache\CacheInterface;
 class Config
 {
     /**
+     * Environment variable consulted when no key is set explicitly
+     */
+    public const API_KEY_ENV_VAR = 'DEXPAPRIKA_API_KEY';
+
+    /**
      * Base API URL
+     *
+     * Serves keyless callers and registered free keys alike. Only Pro moves to
+     * api-pro.dexpaprika.com, which callers set with setBaseUrl(). The host is
+     * never inferred from the presence of a key: sending a free key to the Pro
+     * host returns 403, so guessing would break the people who just registered.
      */
     private string $baseUrl = 'https://api.dexpaprika.com';
+
+    /**
+     * Optional API key. Null means keyless, which is the default and works.
+     */
+    private ?string $apiKey = null;
     
     /**
      * API Timeout in seconds
@@ -48,6 +63,66 @@ class Config
      */
     private int $cacheTtl = 3600;
     
+    /**
+     * Set the API key sent with every request
+     *
+     * Optional. Without one the client is keyless, which works and needs no
+     * signup. An explicit key here beats the DEXPAPRIKA_API_KEY environment
+     * variable.
+     *
+     * The key is sent as the entire Authorization value. There is no "Bearer"
+     * prefix and no other scheme word: the API checksums the raw header, so a
+     * scheme word returns 401. This is the most common reason a working key
+     * looks broken.
+     *
+     * @param string|null $apiKey The API key, or null for keyless
+     * @return self
+     */
+    public function setApiKey(?string $apiKey): self
+    {
+        $this->apiKey = self::sanitizeApiKey($apiKey);
+        return $this;
+    }
+
+    /**
+     * Get the API key in use, or null when running keyless
+     *
+     * Falls back to the DEXPAPRIKA_API_KEY environment variable when no key was
+     * set explicitly.
+     */
+    public function getApiKey(): ?string
+    {
+        if ($this->apiKey !== null) {
+            return $this->apiKey;
+        }
+
+        $fromEnv = getenv(self::API_KEY_ENV_VAR);
+
+        return self::sanitizeApiKey($fromEnv === false ? null : $fromEnv);
+    }
+
+    /**
+     * Trim a key and reject anything that could break out of a header
+     *
+     * A key carrying CR, LF or NUL is dropped rather than mangled: a mangled key
+     * authenticates as nobody, and because the data endpoints ignore an
+     * unreadable key instead of rejecting it, the caller would never find out.
+     */
+    private static function sanitizeApiKey(?string $apiKey): ?string
+    {
+        if ($apiKey === null) {
+            return null;
+        }
+
+        $trimmed = trim($apiKey);
+
+        if ($trimmed === '' || preg_match('/[\r\n\x00]/', $trimmed) === 1) {
+            return null;
+        }
+
+        return $trimmed;
+    }
+
     /**
      * Set the base API URL
      *
