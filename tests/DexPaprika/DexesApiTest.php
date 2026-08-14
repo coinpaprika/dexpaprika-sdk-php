@@ -4,6 +4,7 @@ namespace DexPaprika\Tests;
 
 use DexPaprika\Api\DexesApi;
 use DexPaprika\Exception\NotFoundException;
+use DexPaprika\Exception\DeprecationException;
 use DexPaprika\Exception\DexPaprikaApiException;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
@@ -115,78 +116,156 @@ class DexesApiTest extends TestCase
         $this->assertEquals($expectedResponse, $result);
     }
 
-    public function testGetDexPools(): void
+    /**
+     * One row of a real GET /networks/ethereum/pools/search?dex_name=curve
+     * response, captured live on 2026-08-05. Field names come off the wire:
+     * there is no bare volume_usd, no transactions, and no page_info.
+     *
+     * @return array<string, mixed>
+     */
+    private function liveDexPoolRow(string $id = '0x4f493b7de8aac7d55f71853688b1f7c8f0243c85'): array
     {
-        // Mock the API response for getDexPools
-        $expectedResponse = [
-            'pools' => [
-                ['id' => 'eth_wbtc', 'name' => 'ETH/WBTC'],
-                ['id' => 'eth_usdc', 'name' => 'ETH/USDC']
+        return [
+            'id' => $id,
+            'dex_id' => 'curve',
+            'dex_name' => 'Curve',
+            'chain' => 'ethereum',
+            'volume_usd_24h' => 15883391.558251368,
+            'created_at' => '2025-01-25T17:20:47Z',
+            'created_at_block_number' => 21702976,
+            'transactions_24h' => 289,
+            'price_usd' => 0.9995787501356217,
+            'price_change_percentage_5m' => null,
+            'price_change_percentage_1h' => 0.02422482089565938,
+            'price_change_percentage_6h' => 0.009802157529374174,
+            'price_change_percentage_24h' => 0.007018797950998323,
+            'fee' => null,
+            'volume_usd_7d' => 31781851.73428885,
+            'volume_usd_30d' => 136889876.39037386,
+            'liquidity_usd' => 7407910.088430515,
+            'tokens' => [
+                ['id' => '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', 'chain' => 'ethereum', 'has_image' => true],
+                ['id' => '0xdac17f958d2ee523a2206206994597c13d831ec7', 'chain' => 'ethereum', 'has_image' => true],
             ],
-            'page_info' => [
-                'page' => 0,
-                'total_pages' => 5,
-                'items_on_page' => 2,
-                'total_items' => 10
-            ]
         ];
+    }
 
-        // Create a mock for the DexesApi that only mocks the get method
+    /**
+     * The full cursor-paginated envelope returned by /pools/search.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<string, mixed>
+     */
+    private function liveSearchEnvelope(array $rows, bool $hasNext = true, ?string $nextCursor = 'eyJjaGFpbiI6ImV0aGVyZXVtIn0'): array
+    {
+        return [
+            'results' => $rows,
+            'has_next_page' => $hasNext,
+            'next_cursor' => $nextCursor,
+            'query' => ['network' => 'ethereum', 'limit' => 10, 'dex_name' => 'curve', 'order_by' => 'volume_usd_24h'],
+        ];
+    }
+
+    public function testGetDexPoolsTargetsPoolsSearchWithDexName(): void
+    {
+        // DexPaprika removed /networks/{network}/dexes/{dex}/pools (410 Gone).
+        // The DEX now travels in the dex_name query parameter instead.
+        $expectedResponse = $this->liveSearchEnvelope([$this->liveDexPoolRow()]);
+
         $mockApi = $this->getMockBuilder(DexesApi::class)
             ->setConstructorArgs([$this->createMockClient([])])
             ->onlyMethods(['get'])
             ->getMock();
 
-        // Set up expectations for the mocked get method - allow any number of calls
-        $mockApi->expects($this->any())
+        $mockApi->expects($this->once())
             ->method('get')
             ->with(
-                $this->equalTo('/networks/ethereum/dexes/uniswap_v3/pools'),
+                $this->equalTo('/networks/ethereum/pools/search'),
                 $this->equalTo([
-                    'page' => 0,
-                    'limit' => 10
+                    'dex_name' => 'curve',
+                    'limit' => 10,
                 ])
             )
             ->willReturn($expectedResponse);
 
-        // Call the method with test parameters
-        $result = $mockApi->getDexPools('ethereum', 'uniswap_v3', [
-            'page' => 0,
-            'limit' => 10
-        ]);
-
-        // Assert the response matches our expectations
-        $this->assertEquals($expectedResponse, $result);
-
-        // Test with asObject = true
-        $result = $mockApi->getDexPools('ethereum', 'uniswap_v3', [
+        // `page` is still accepted but must not reach the wire.
+        $result = $mockApi->getDexPools('ethereum', 'curve', [
             'page' => 0,
             'limit' => 10,
-            'asObject' => true
         ]);
 
-        // When testing with transformation, we need to make sure the 
-        // transformResponse method is correctly working
+        $this->assertEquals($expectedResponse, $result);
+        $this->assertArrayHasKey('results', $result);
+        $this->assertArrayNotHasKey('pools', $result);
+        $this->assertArrayNotHasKey('page_info', $result);
+        $this->assertTrue($result['has_next_page']);
+        $this->assertSame('curve', $result['results'][0]['dex_id']);
+        $this->assertSame(15883391.558251368, $result['results'][0]['volume_usd_24h']);
+        $this->assertArrayNotHasKey('volume_usd', $result['results'][0]);
+    }
+
+    public function testGetDexPoolsMapsLegacyOrderByAndForwardsCursor(): void
+    {
+        $mockApi = $this->getMockBuilder(DexesApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+
+        $mockApi->expects($this->once())
+            ->method('get')
+            ->with(
+                $this->equalTo('/networks/ethereum/pools/search'),
+                $this->equalTo([
+                    'dex_name' => 'uniswap_v3',
+                    'limit' => 5,
+                    'order_by' => 'volume_usd_24h',
+                    'sort' => 'desc',
+                    'cursor' => 'abc123',
+                ])
+            )
+            ->willReturn($this->liveSearchEnvelope([$this->liveDexPoolRow()]));
+
+        $mockApi->getDexPools('ethereum', 'uniswap_v3', [
+            'page' => 3,
+            'limit' => 5,
+            'orderBy' => 'volume_usd',
+            'sort' => 'desc',
+            'cursor' => 'abc123',
+        ]);
+    }
+
+    public function testGetDexPoolsAsObject(): void
+    {
+        $expectedResponse = $this->liveSearchEnvelope([
+            $this->liveDexPoolRow(),
+            $this->liveDexPoolRow('0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7'),
+        ]);
+
+        $mockApi = $this->getMockBuilder(DexesApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+
+        $mockApi->expects($this->once())
+            ->method('get')
+            ->willReturn($expectedResponse);
+
+        $result = $mockApi->getDexPools('ethereum', 'curve', [
+            'limit' => 10,
+            'asObject' => true,
+        ]);
+
         $this->assertIsObject($result);
-        $this->assertIsArray($result->pools);
-        $this->assertEquals(2, count($result->pools));
+        $this->assertIsArray($result->results);
+        $this->assertCount(2, $result->results);
+        $this->assertSame('curve', $result->results[0]->dex_id);
+        $this->assertTrue($result->has_next_page);
+        $this->assertFalse(property_exists($result, 'page_info'));
     }
 
     public function testListDexPools(): void
     {
-        // Mock the API response for listDexPools
-        $expectedResponse = [
-            'pools' => [
-                ['id' => 'eth_wbtc', 'name' => 'ETH/WBTC'],
-                ['id' => 'eth_usdc', 'name' => 'ETH/USDC']
-            ],
-            'page_info' => [
-                'page' => 0,
-                'total_pages' => 5,
-                'items_on_page' => 2,
-                'total_items' => 10
-            ]
-        ];
+        $expectedResponse = $this->liveSearchEnvelope([$this->liveDexPoolRow()]);
 
         // Use partial mock to only mock the getDexPools method
         $mockApi = $this->getMockBuilder(DexesApi::class)
@@ -199,46 +278,30 @@ class DexesApiTest extends TestCase
             ->method('getDexPools')
             ->with(
                 $this->equalTo('ethereum'),
-                $this->equalTo('uniswap_v3'),
+                $this->equalTo('curve'),
                 $this->equalTo(['limit' => 10])
             )
             ->willReturn($expectedResponse);
 
         // Call listDexPools and verify it correctly uses getDexPools
-        $result = $mockApi->listDexPools('ethereum', 'uniswap_v3', ['limit' => 10]);
+        $result = $mockApi->listDexPools('ethereum', 'curve', ['limit' => 10]);
         $this->assertEquals($expectedResponse, $result);
     }
 
     public function testFetchAllDexPools(): void
     {
-        // Test responses for multiple pages
+        // Cursor-paginated pages, shaped like the live search envelope.
         $responses = [
-            // Page 0
-            [
-                'pools' => [
-                    ['id' => 'pool1', 'name' => 'Pool 1'],
-                    ['id' => 'pool2', 'name' => 'Pool 2']
-                ],
-                'page_info' => [
-                    'page' => 0,
-                    'total_pages' => 2,
-                    'items_on_page' => 2,
-                    'total_items' => 4
-                ]
-            ],
-            // Page 1
-            [
-                'pools' => [
-                    ['id' => 'pool3', 'name' => 'Pool 3'],
-                    ['id' => 'pool4', 'name' => 'Pool 4']
-                ],
-                'page_info' => [
-                    'page' => 1,
-                    'total_pages' => 2,
-                    'items_on_page' => 2,
-                    'total_items' => 4
-                ]
-            ]
+            $this->liveSearchEnvelope(
+                [$this->liveDexPoolRow('pool1'), $this->liveDexPoolRow('pool2')],
+                true,
+                'cursor-page-2'
+            ),
+            $this->liveSearchEnvelope(
+                [$this->liveDexPoolRow('pool3'), $this->liveDexPoolRow('pool4')],
+                false,
+                null
+            ),
         ];
 
         // Mock the DexesApi but only the getDexPools method
@@ -247,27 +310,28 @@ class DexesApiTest extends TestCase
             ->onlyMethods(['getDexPools'])
             ->getMock();
 
-        // Set up expectations for each call to getDexPools
+        $seenCursors = [];
+
+        // Pages are threaded by cursor, never by a page number.
         $mockApi->expects($this->exactly(2))
             ->method('getDexPools')
-            ->willReturnCallback(function($networkId, $dexId, $options) use ($responses) {
-                $page = $options['page'] ?? 0;
-                return $responses[$page];
+            ->willReturnCallback(function ($networkId, $dexId, $options) use ($responses, &$seenCursors) {
+                $this->assertArrayNotHasKey('page', $options);
+                $seenCursors[] = $options['cursor'] ?? null;
+                return $responses[count($seenCursors) - 1];
             });
 
         // Create a collector for results
         $allPools = [];
-        $callback = function($poolsData, $page) use (&$allPools) {
-            if (isset($poolsData['pools'])) {
-                foreach ($poolsData['pools'] as $pool) {
-                    $allPools[] = $pool;
-                }
+        $callback = function ($poolsData, $page) use (&$allPools) {
+            foreach ($poolsData['results'] ?? [] as $pool) {
+                $allPools[] = $pool;
             }
             return true; // Continue pagination
         };
 
         // Execute fetchAllDexPools
-        $totalPages = $mockApi->fetchAllDexPools('ethereum', 'uniswap_v3', $callback, [
+        $totalPages = $mockApi->fetchAllDexPools('ethereum', 'curve', $callback, [
             'limit' => 2
         ]);
 
@@ -276,51 +340,29 @@ class DexesApiTest extends TestCase
         $this->assertCount(4, $allPools, 'Should have collected 4 pools');
         $this->assertEquals('pool1', $allPools[0]['id']);
         $this->assertEquals('pool4', $allPools[3]['id']);
+        // First call has no cursor, second reuses next_cursor from page one.
+        $this->assertSame([null, 'cursor-page-2'], $seenCursors);
     }
 
     public function testFetchAllDexPoolsWithStopCondition(): void
     {
-        // Test responses for multiple pages
         $responses = [
-            // Page 0
-            [
-                'pools' => [
-                    ['id' => 'pool1', 'name' => 'Pool 1'],
-                    ['id' => 'pool2', 'name' => 'Pool 2']
-                ],
-                'page_info' => [
-                    'page' => 0,
-                    'total_pages' => 3,
-                    'items_on_page' => 2,
-                    'total_items' => 6
-                ]
-            ],
-            // Page 1
-            [
-                'pools' => [
-                    ['id' => 'pool3', 'name' => 'Pool 3'],
-                    ['id' => 'pool4', 'name' => 'Pool 4']
-                ],
-                'page_info' => [
-                    'page' => 1,
-                    'total_pages' => 3,
-                    'items_on_page' => 2,
-                    'total_items' => 6
-                ]
-            ],
-            // Page 2 (should not be called due to stop condition)
-            [
-                'pools' => [
-                    ['id' => 'pool5', 'name' => 'Pool 5'],
-                    ['id' => 'pool6', 'name' => 'Pool 6']
-                ],
-                'page_info' => [
-                    'page' => 2,
-                    'total_pages' => 3,
-                    'items_on_page' => 2,
-                    'total_items' => 6
-                ]
-            ]
+            $this->liveSearchEnvelope(
+                [$this->liveDexPoolRow('pool1'), $this->liveDexPoolRow('pool2')],
+                true,
+                'cursor-page-2'
+            ),
+            $this->liveSearchEnvelope(
+                [$this->liveDexPoolRow('pool3'), $this->liveDexPoolRow('pool4')],
+                true,
+                'cursor-page-3'
+            ),
+            // Page 3 should not be requested because the callback stops first.
+            $this->liveSearchEnvelope(
+                [$this->liveDexPoolRow('pool5'), $this->liveDexPoolRow('pool6')],
+                true,
+                'cursor-page-4'
+            ),
         ];
 
         // Mock the DexesApi but only the getDexPools method
@@ -329,28 +371,27 @@ class DexesApiTest extends TestCase
             ->onlyMethods(['getDexPools'])
             ->getMock();
 
+        $calls = 0;
+
         // Set up expectations for each call to getDexPools
         $mockApi->expects($this->exactly(2)) // Only two calls should happen
             ->method('getDexPools')
-            ->willReturnCallback(function($networkId, $dexId, $options) use ($responses) {
-                $page = $options['page'] ?? 0;
-                return $responses[$page];
+            ->willReturnCallback(function ($networkId, $dexId, $options) use ($responses, &$calls) {
+                return $responses[$calls++];
             });
 
         // Create a collector for results
         $allPools = [];
-        $callback = function($poolsData, $page) use (&$allPools) {
-            if (isset($poolsData['pools'])) {
-                foreach ($poolsData['pools'] as $pool) {
-                    $allPools[] = $pool;
-                }
+        $callback = function ($poolsData, $page) use (&$allPools) {
+            foreach ($poolsData['results'] ?? [] as $pool) {
+                $allPools[] = $pool;
             }
             // Stop after page 1 (the second page)
             return $page < 1;
         };
 
         // Execute fetchAllDexPools
-        $totalPages = $mockApi->fetchAllDexPools('ethereum', 'uniswap_v3', $callback, [
+        $totalPages = $mockApi->fetchAllDexPools('ethereum', 'curve', $callback, [
             'limit' => 2
         ]);
 
@@ -359,6 +400,32 @@ class DexesApiTest extends TestCase
         $this->assertCount(4, $allPools, 'Should have collected 4 pools');
         $this->assertEquals('pool1', $allPools[0]['id']);
         $this->assertEquals('pool4', $allPools[3]['id']);
+    }
+
+    public function testRemovedDexPoolsPathSurfacesReplacement(): void
+    {
+        // The exact body the API returns for the removed path, captured live.
+        $mockClient = $this->createMockClient([
+            new Response(410, [], json_encode([
+                'code' => 410,
+                'message' => 'endpoint removed',
+                'replacement' => '/networks/{network}/pools/search',
+            ])),
+        ]);
+
+        $api = new DexesApi($mockClient);
+
+        try {
+            // A caller still pinned to the old path.
+            $reflection = new \ReflectionMethod(DexesApi::class, 'get');
+            $reflection->setAccessible(true);
+            $reflection->invoke($api, '/networks/ethereum/dexes/uniswap_v3/pools', []);
+            $this->fail('Expected a DeprecationException for the removed endpoint');
+        } catch (DeprecationException $e) {
+            $this->assertSame(410, $e->getCode());
+            $this->assertSame('/networks/{network}/pools/search', $e->getReplacement());
+            $this->assertStringContainsString('Use /networks/{network}/pools/search instead.', $e->getMessage());
+        }
     }
 
     public function testGetNetworkDexesThrowsExceptionOnApiError(): void

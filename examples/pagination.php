@@ -88,8 +88,9 @@ try {
 
     // Example 3: Get all results at once
     //
-    // DEX pools are offset paginated and identified by a DEX id, not a factory
-    // address. The ids use underscores: uniswap_v3, not uniswap-v3.
+    // DEX pools are cursor paginated (they run on pools/search with a dex_name
+    // filter) and identified by a DEX id, not a factory address. The ids use
+    // underscores: uniswap_v3, not uniswap-v3.
     echo "3. Get all results at once (limited to 10):\n";
     echo "----------------------------------------\n";
 
@@ -109,7 +110,7 @@ try {
     echo "Found " . count($allPools) . " pools in total\n";
     foreach (array_slice($allPools, 0, 5) as $index => $pool) {
         echo "  " . ($index + 1) . ". " . $pool['dex_name'] . " - Volume: $" .
-             number_format($pool['volume_usd'], 2) . "\n";
+             number_format($pool['volume_usd_24h'], 2) . "\n";
     }
 
     echo "  ... (and " . (count($allPools) - 5) . " more)\n\n";
