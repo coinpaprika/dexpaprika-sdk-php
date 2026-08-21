@@ -144,7 +144,7 @@ try {
 
 ## Using an API key (optional)
 
-**The SDK works without a key and always will.** No signup, no card. Everything
+**The SDK works without a key.** No signup, no card. Everything
 below is optional.
 
 A free key raises the monthly credit allowance. It does **not** raise the
@@ -167,7 +167,7 @@ $client = new Client();
 previous keyless behaviour unchanged.
 
 **There is no `Bearer` prefix.** The key is sent as the entire `Authorization`
-value, which is what the API expects; a scheme word returns 401. You never write
+value, which is what the API expects; `ApiKey` or `Token` in front of it returns 401. You never write
 the header yourself, so this only matters when debugging what went out.
 
 **Pro customers** also set the base URL, because the host does not change on its
