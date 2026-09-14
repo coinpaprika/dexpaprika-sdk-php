@@ -79,7 +79,7 @@ class ApiKeyTest extends TestCase
         return null;
     }
 
-    // ── The Bearer rule ─────────────────────────────────────────────────────
+    // ── The Authorization rule ──────────────────────────────────────────────
 
     public function testKeyIsTheEntireAuthorizationValue(): void
     {
