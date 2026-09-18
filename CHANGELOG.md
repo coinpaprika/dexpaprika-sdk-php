@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - 2026-09-18
+
+### Fixed
+- `composer.json` now requires `psr/log`. `BaseApi` instantiates `Psr\Log\NullLogger` when no logger is passed, and nothing in the dependency tree provided it, so a fresh `composer require coinpaprika/dexpaprika-sdk` followed by `new Client()` failed with `Class "Psr\Log\NullLogger" not found`. Tests never caught it because phpunit brings `psr/log` in as a dev dependency.
+
 ## [1.8.0] - 2026-08-14
 
 ### Added
