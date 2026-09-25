@@ -166,11 +166,14 @@ class PoolsApi extends BaseApi
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)
      * @param string $poolAddress Pool address or identifier
-     * @param string $start Start time for historical data (ISO-8601, yyyy-mm-dd, or Unix timestamp)
+     * @param string $start Start time for historical data: a relative offset from now such as '-24h'
+     *  or '-7d', ISO-8601, yyyy-mm-dd, or a Unix timestamp. Must fall inside your plan's history
+     *  window (24 hours without a key), otherwise the API answers 403. See https://docs.dexpaprika.com/knowledge-base/rate-limits#ohlcv-limits-by-plan
      * @param array<string, mixed> $options Additional options:
-     *  - string $end: End time for historical data
-     *  - string $interval: Interval granularity for OHLCV data (default: '24h')
-     *  - int $limit: Number of data points to retrieve (default: 1, max: 366)
+     *  - string $end: End time for historical data, same formats as $start (e.g. '-1h')
+     *  - string $interval: Interval granularity for OHLCV data (default: '24h'). Without a key
+     *    only '1h' and longer; a free key allows '10m' and longer.
+     *  - int $limit: Number of data points to retrieve (default: 1, max: 1000)
      *  - bool $inversed: Whether to invert the price ratio (default: false)
      *  - bool $asObject: Whether to return the response as an object (default: false)
      * @return array<string, mixed>|object OHLCV data for the pool
@@ -187,8 +190,8 @@ class PoolsApi extends BaseApi
         }
         
         // Validate limit parameter
-        if (isset($options['limit']) && ($options['limit'] < 1 || $options['limit'] > 366)) {
-            throw new ValidationException('Limit must be between 1 and 366 for OHLCV data');
+        if (isset($options['limit']) && ($options['limit'] < 1 || $options['limit'] > 1000)) {
+            throw new ValidationException('Limit must be between 1 and 1000 for OHLCV data');
         }
 
         $params = [

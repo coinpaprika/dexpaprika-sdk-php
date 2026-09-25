@@ -72,19 +72,18 @@ try {
 
     echo "Using pool {$pool['id']} on {$pool['dex_name']} ({$pool['chain']})\n";
 
-    $startDate = date('Y-m-d', strtotime('-7 days'));
+    echo "Hourly OHLCV for the last 24 hours:\n";
 
-    echo "Daily OHLCV since {$startDate}:\n";
-
-    // getPoolOHLCV takes the start date as its own argument, not inside the
-    // options array. The response is a plain list of candles.
+    // getPoolOHLCV takes the start as its own argument, not inside the options
+    // array. '-24h' is relative to now and is the whole window without a key.
+    // The response is a plain list of candles.
     $ohlcvData = $client->pools->getPoolOHLCV(
         $pool['chain'],
         $pool['id'],
-        $startDate,
+        '-24h',
         [
-            'interval' => '24h',
-            'limit' => 7,
+            'interval' => '1h',
+            'limit' => 24,
         ]
     );
 

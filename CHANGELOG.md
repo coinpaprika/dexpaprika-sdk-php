@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-09-25
+
+OHLCV availability now depends on your plan. This release documents the change, updates the examples so they work without a key, and lets `limit` go as high as the API allows.
+
+### API changes this release documents
+- **OHLCV history depth and candle interval are per plan since 2026-09-25.** Without a key: the last 24 hours at `1h`, `6h`, `12h` and `24h`. Free key: 7 days at `10m` and longer (`1m` and `5m` are paid). Dev: 30 days at every interval. Pro and Enterprise: unlimited. A `start` or `end` outside the window, or a finer interval than the plan allows, is answered with `403`; `getPoolOHLCV` throws a `ClientException` whose message names the plan that lifts the limit. See [OHLCV limits by plan](https://docs.dexpaprika.com/knowledge-base/rate-limits#ohlcv-limits-by-plan).
+- **`start` and `end` accept a relative offset from now:** `-24h`, `-7d`, `-90m`, `-30s`. `'-24h'` selects the last 24 hours, which every plan may query. `$start` is a string, so this works in 1.8.1 too.
+- A missing or malformed `start` or `end` is answered with `400`.
+
+### Fixed
+- **`getPoolOHLCV` rejected `limit` above 366.** The API accepts up to 1000 candles per request; the SDK now does too.
+- The README example (`2023-01-01` to `2023-01-07`), `examples/advanced_usage.php` and `examples/ohlcv_data.php` asked for 7 to 14 days of daily candles, which returns 403 without a key. They use `'-24h'` with hourly candles; the SMA and volatility examples work on hourly data.
+
+### Changed
+- `getPoolOHLCV` docblock describes the relative offset and the per-plan window.
+
 ## [1.8.1] - 2026-09-18
 
 ### Fixed
