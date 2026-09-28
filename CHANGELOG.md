@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.1] - 2026-09-28
+
+### Fixed
+- **`$client->networks->getNetworkDexes()` and `listNetworkDexes()` crashed.** They called a client property that `NetworksApi` never had (`Undefined property: NetworksApi::$client`, then a fatal on `sendRequest()`). They now call `GET /networks/{network}/dexes` like `$client->dexes->getNetworkDexes()` does, and `asObject` is no longer sent as a query parameter.
+- **`$client->networks->findNetwork()` always returned `null`.** It looked for a `networks` key, but `GET /networks` returns a plain list. It now searches the list, still accepts a wrapped one, and in object mode returns the matching network as an object instead of failing on an undefined property.
+- **`$client->networks->findDex()` could never match.** It went through the broken `getNetworkDexes()` and compared an `id` field that DEX rows do not have. It now matches `dex_id` (for example `'uniswap_v3'`, the value `getDexPools()` takes), falling back to `id`.
+- **`fetchAllNetworkDexes()` fetched the same list over and over.** The endpoint ignores `page` and `limit` and returns every DEX with `total_pages` 0, so the loop repeated the full list until `maxPages`, and without end when `maxPages` was 0. It now stops when the response gives no page count or the last page is reached.
+
 ## [1.10.0] - 2026-09-28
 
 ### Fixed
