@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-09-28
+
+### Fixed
+- **`$client->pools->getPoolTransactions()` dropped `from` and `to`.** The options were documented on `TransactionsApi`, which `Client` does not expose, and the method you reach through the client never forwarded them, so a time-filtered call quietly returned the latest transactions instead. Both are now sent.
+
+### API changes this release documents
+- **`from` and `to` on pool transactions, and `created_after` and `created_before` on pool and token search, accept a relative offset from now** (`-1h`, `-24h`, `-7d`; units s, m, h, d), RFC 3339 or `YYYY-MM-DD`, next to Unix seconds. `'from' => '-1h'` returns the last hour of transactions. Unix seconds keep working unchanged. `from` is inclusive and `to` is exclusive; the search bounds include both ends.
+
+### Changed
+- Docblocks for `from`, `to`, `createdAfter` and `createdBefore` list the accepted formats and take `string|int`.
+
 ## [1.9.0] - 2026-09-25
 
 OHLCV availability now depends on your plan. This release documents the change, updates the examples so they work without a key, and lets `limit` go as high as the API allows.

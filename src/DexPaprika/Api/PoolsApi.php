@@ -228,6 +228,8 @@ class PoolsApi extends BaseApi
      *  - int $page: Page number for pagination (default: 0)
      *  - int $limit: Number of items per page (default: 10, max: 100)
      *  - string $cursor: Transaction ID used for cursor-based pagination
+     *  - string|int $from: Only transactions at or after this time: a relative offset from now such as '-1h' or '-24h', Unix seconds, RFC 3339 or YYYY-MM-DD (results are capped to the last 7 days)
+     *  - string|int $to: Only transactions before this time (exclusive), same formats as $from
      *  - bool $asObject: Whether to return the response as an object (default: false)
      * @return array<string, mixed>|object Pool transactions
      * @throws ValidationException If parameters are invalid
@@ -255,6 +257,14 @@ class PoolsApi extends BaseApi
 
         if (isset($options['cursor'])) {
             $params['cursor'] = $options['cursor'];
+        }
+
+        if (isset($options['from'])) {
+            $params['from'] = $options['from'];
+        }
+
+        if (isset($options['to'])) {
+            $params['to'] = $options['to'];
         }
 
         $response = $this->get("/networks/{$networkId}/pools/{$poolAddress}/transactions", $params);
@@ -301,8 +311,8 @@ class PoolsApi extends BaseApi
      *  - float $priceChangePercentage1hMax: Maximum 1h price change, in percent
      *  - float $priceChangePercentage5mMin: Minimum 5m price change, in percent
      *  - float $priceChangePercentage5mMax: Maximum 5m price change, in percent
-     *  - string|int $createdAfter: Only pools created after this time (Unix timestamp)
-     *  - string|int $createdBefore: Only pools created before this time (Unix timestamp)
+     *  - string|int $createdAfter: Only pools created at or after this time: a relative offset from now such as '-24h' or '-7d', Unix seconds, RFC 3339 or YYYY-MM-DD
+     *  - string|int $createdBefore: Only pools created at or before this time, same formats as $createdAfter
      *  - bool $asObject: Whether to return the response as an object (default: false)
      * @return array<string, mixed>|object Filtered pools (results[] + has_next_page + next_cursor)
      * @throws ValidationException If parameters are invalid
