@@ -372,6 +372,22 @@ class PoolsApiTest extends TestCase
         $this->assertEquals('eth_wbtc', $result->pool->id);
     }
 
+    public function testGetPoolOHLCVLimitRange(): void
+    {
+        // The API returns up to 1000 candles per request; the SDK used to stop at 366.
+        $mockApi = $this->getMockBuilder(PoolsApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+        $mockApi->expects($this->once())->method('get')->willReturn([]);
+
+        $mockApi->getPoolOHLCV('ethereum', '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640', '-24h', ['limit' => 1000]);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Limit must be between 1 and 1000');
+        $mockApi->getPoolOHLCV('ethereum', '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640', '-24h', ['limit' => 1001]);
+    }
+
     public function testGetPoolOHLCV(): void
     {
         // Mock the API response for getPoolOHLCV

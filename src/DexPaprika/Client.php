@@ -75,7 +75,7 @@ class Client
     /**
      * SDK version
      */
-    public const VERSION = '1.8.1';
+    public const VERSION = '1.9.0';
 
     /**
      * Create a new DexPaprika client
