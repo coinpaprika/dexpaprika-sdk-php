@@ -2,7 +2,6 @@
 
 namespace DexPaprika\Api;
 
-use DexPaprika\DexPaprikaClient;
 use DexPaprika\Utils\ResponseTransformer;
 
 class NetworksApi extends BaseApi
@@ -30,22 +29,17 @@ class NetworksApi extends BaseApi
      */
     public function findNetwork(string $networkId, bool $asObject = false)
     {
-        $networks = $this->getNetworks(['asObject' => $asObject]);
-        
-        if ($asObject) {
-            foreach ($networks->networks as $network) {
-                if ($network->id === $networkId) {
-                    return $network;
-                }
-            }
-        } else {
-            foreach ($networks['networks'] as $network) {
-                if ($network['id'] === $networkId) {
-                    return $network;
-                }
+        // GET /networks is a plain list. Search the array form and convert only
+        // the match, so object mode does not depend on how a list transforms.
+        $networks = $this->getNetworks();
+        $list = $networks['networks'] ?? $networks;
+
+        foreach ($list as $network) {
+            if (is_array($network) && ($network['id'] ?? null) === $networkId) {
+                return $asObject ? ResponseTransformer::transform($network) : $network;
             }
         }
-        
+
         return null;
     }
 
@@ -61,9 +55,9 @@ class NetworksApi extends BaseApi
      */
     public function getNetworkDexes(string $networkId, array $options = [])
     {
-        $params = [
-            'network' => $networkId,
-        ];
+        $this->validateRequired(['networkId' => $networkId], ['networkId']);
+
+        $params = [];
 
         if (isset($options['page'])) {
             $params['page'] = $options['page'];
@@ -73,8 +67,8 @@ class NetworksApi extends BaseApi
             $params['limit'] = $options['limit'];
         }
 
-        $response = $this->client->sendRequest('getNetworkDexes', $params);
-        
+        $response = $this->get("/networks/{$networkId}/dexes", $params);
+
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
 
@@ -103,22 +97,17 @@ class NetworksApi extends BaseApi
      */
     public function findDex(string $networkId, string $dexId, bool $asObject = false)
     {
-        $dexes = $this->getNetworkDexes($networkId, ['asObject' => $asObject]);
-        
-        if ($asObject) {
-            foreach ($dexes->dexes as $dex) {
-                if ($dex->id === $dexId) {
-                    return $dex;
-                }
-            }
-        } else {
-            foreach ($dexes['dexes'] as $dex) {
-                if ($dex['id'] === $dexId) {
-                    return $dex;
-                }
+        $dexes = $this->getNetworkDexes($networkId);
+
+        foreach ($dexes['dexes'] ?? [] as $dex) {
+            // Rows carry dex_id (e.g. 'uniswap_v3') and dex_name ('Uniswap V3');
+            // 'id' is kept for older response shapes.
+            $id = $dex['dex_id'] ?? $dex['id'] ?? null;
+            if ($id === $dexId) {
+                return $asObject ? ResponseTransformer::transform($dex) : $dex;
             }
         }
-        
+
         return null;
     }
 
@@ -168,14 +157,18 @@ class NetworksApi extends BaseApi
             }
             
             // Check if we've reached the end of available DEXes
-            if ($asObject) {
-                if (!isset($response->dexes) || count($response->dexes) < $limit) {
-                    break;
-                }
-            } else {
-                if (!isset($response['dexes']) || count($response['dexes']) < $limit) {
-                    break;
-                }
+            $rows = $asObject ? ($response->dexes ?? null) : ($response['dexes'] ?? null);
+            if ($rows === null || count($rows) < $limit) {
+                break;
+            }
+
+            // The endpoint currently ignores page and limit and returns the whole
+            // list with total_pages 0. Without a page count there is no next page;
+            // asking again would fetch the same list until maxPages (forever at 0).
+            $pageInfo = $asObject ? ($response->page_info ?? null) : ($response['page_info'] ?? null);
+            $pageCount = (int) (is_object($pageInfo) ? ($pageInfo->total_pages ?? 0) : ($pageInfo['total_pages'] ?? 0));
+            if ($pageCount <= 0 || $page >= $pageCount) {
+                break;
             }
             
         } while (true);
