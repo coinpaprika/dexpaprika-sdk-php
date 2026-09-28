@@ -308,9 +308,14 @@ $ohlcvData = $client->pools->getPoolOHLCV('ethereum', '0x88e6a0c2ddd26feeb64f039
 
 // Get transactions for a pool
 $transactions = $client->pools->getPoolTransactions('ethereum', '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640', ['limit' => 20]);
+
+// Only the last hour of transactions
+$lastHour = $client->pools->getPoolTransactions('ethereum', '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640', ['limit' => 20, 'from' => '-1h']);
 ```
 
 OHLCV `start` and `end` take a relative offset from now (`-24h`, `-7d`, `-90m`) as well as ISO dates and Unix timestamps. How far back you can go and how fine the candles can be depends on your plan: without a key, the last 24 hours at `1h` and longer; a free key opens 7 days at `10m` and longer; Dev 30 days at every interval; Pro unlimited. A request outside your plan throws a `ClientException` carrying the API's message. Full table: [OHLCV limits by plan](https://docs.dexpaprika.com/knowledge-base/rate-limits#ohlcv-limits-by-plan).
+
+Transaction `from` and `to`, and `createdAfter` and `createdBefore` on `filterPools` and `filterTokens`, take the same relative offsets, as well as Unix seconds, RFC 3339 and `YYYY-MM-DD`. Transactions go back 7 days at most.
 
 ### Tokens
 

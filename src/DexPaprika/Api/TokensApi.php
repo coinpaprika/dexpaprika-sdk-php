@@ -237,8 +237,8 @@ class TokensApi extends BaseApi
      *  - int $txns24hMin: Minimum number of transactions in 24h
      *  - float $priceChangePercentage24hMin: Minimum 24h price change, in percent
      *  - float $priceChangePercentage24hMax: Maximum 24h price change, in percent
-     *  - string|int $createdAfter: Only tokens created after this time (Unix timestamp)
-     *  - string|int $createdBefore: Only tokens created before this time (Unix timestamp)
+     *  - string|int $createdAfter: Only tokens created at or after this time: a relative offset from now such as '-24h' or '-7d', Unix seconds, RFC 3339 or YYYY-MM-DD
+     *  - string|int $createdBefore: Only tokens created at or before this time, same formats as $createdAfter
      *  - bool $asObject: Whether to return the response as an object (default: false)
      * @return array<string, mixed>|object Filtered tokens (results[] + has_next_page + next_cursor)
      * @throws ValidationException If parameters are invalid
