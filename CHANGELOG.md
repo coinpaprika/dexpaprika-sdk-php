@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.11.1] - 2026-09-29
 
+### Changed
+- The README and the `setApiKey()` doc comment now just say to send the key on its own, as the whole `Authorization` value.
+
 ### Fixed
 - A 5xx answered by the edge in front of the API carries `{"error": {"code", "message"}}`. That object went into the exception constructor and PHP threw a `TypeError` instead of the SDK's `ServerException`. The exception now carries the message, and the request is retried like any other 5xx.
 - `getPoolOHLCV()` and `getTokenOHLCV()` fill `volume` with 0 on a candle the API sent without it. The API leaves the field out when a candle's USD volume rounds down to 0.

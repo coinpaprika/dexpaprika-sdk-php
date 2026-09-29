@@ -166,11 +166,11 @@ $client = new Client();
 `setApiKey()` beats the environment variable, and no key at all keeps the
 previous keyless behaviour unchanged.
 
-**There is no `Bearer` prefix.** The key is sent as the entire `Authorization`
-value, which is what the API expects; `ApiKey` or `Token` in front of it returns 401. You never write
-the header yourself, so this only matters when debugging what went out.
+The key is sent as the entire `Authorization` value, with nothing in front of
+it. You never write the header yourself, so this only matters when debugging
+what went out.
 
-**Pro customers** also set the base URL, because the host does not change on its
+**Dev and Pro customers** also set the base URL, because the host does not change on its
 own. Free keys are served from the default host and sending one to the Pro host
 returns 403, so the switch has to be deliberate:
 

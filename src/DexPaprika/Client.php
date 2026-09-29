@@ -104,7 +104,7 @@ class Client
 
         $apiKey = $this->config->getApiKey();
         if ($apiKey !== null) {
-            // The whole value, with no scheme word in front of it.
+            // The whole value, with nothing in front of it.
             $headers['Authorization'] = $apiKey;
         }
 

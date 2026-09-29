@@ -70,10 +70,8 @@ class Config
      * signup. An explicit key here beats the DEXPAPRIKA_API_KEY environment
      * variable.
      *
-     * The key is sent as the entire Authorization value. There is no "Bearer"
-     * prefix and no other scheme word: the API checksums the raw header, so a
-     * scheme word returns 401. This is the most common reason a working key
-     * looks broken.
+     * The key is sent as the entire Authorization value, with nothing in front
+     * of it.
      *
      * @param string|null $apiKey The API key, or null for keyless
      * @return self
