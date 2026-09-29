@@ -362,7 +362,7 @@ $config = (new Config())
     ->setBaseUrl('https://api-pro.dexpaprika.com');
 $client = new Client(null, null, false, $config);
 
-$tokenOhlcv = $client->tokens->getTokenOhlcv(
+$tokenOhlcv = $client->tokens->getTokenOHLCV(
     'ethereum',
     '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
     '-24h',
@@ -373,7 +373,7 @@ $tokenOhlcv = $client->tokens->getTokenOhlcv(
 );
 ```
 
-A keyless or free-key call gets `403`, and `getTokenOhlcv()` throws a
+A keyless or free-key call gets `403`, and `getTokenOHLCV()` throws a
 `ClientException` carrying the API's message. See
 [Get OHLCV data for a token](https://docs.dexpaprika.com/api-reference/tokens/get-ohlcv-data-for-a-token)
 and current plan details on the

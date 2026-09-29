@@ -546,7 +546,7 @@ class TokensApiTest extends TestCase
         // Pass 'inversed', matching a caller carrying it over by habit from pool
         // OHLCV: it must never reach the query, because the endpoint has no such
         // parameter.
-        $result = $mockApi->getTokenOhlcv(
+        $result = $mockApi->getTokenOHLCV(
             'ethereum',
             '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
             '-24h',
@@ -576,7 +576,7 @@ class TokensApiTest extends TestCase
             )
             ->willReturn([]);
 
-        $mockApi->getTokenOhlcv('solana', 'So11111111111111111111111111111111111111112', '-7d');
+        $mockApi->getTokenOHLCV('solana', 'So11111111111111111111111111111111111111112', '-7d');
     }
 
     public function testGetTokenOhlcvValidatesLimitParameter(): void
@@ -588,11 +588,11 @@ class TokensApiTest extends TestCase
         $mockApi->expects($this->once())->method('get')->willReturn([]);
 
         // 1000 is accepted.
-        $mockApi->getTokenOhlcv('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '-24h', ['limit' => 1000]);
+        $mockApi->getTokenOHLCV('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '-24h', ['limit' => 1000]);
 
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('Limit must be between 1 and 1000');
-        $mockApi->getTokenOhlcv('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '-24h', ['limit' => 1001]);
+        $mockApi->getTokenOHLCV('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '-24h', ['limit' => 1001]);
     }
 
     public function testGetTokenOhlcvRequiresStart(): void
@@ -604,7 +604,7 @@ class TokensApiTest extends TestCase
         $mockApi->expects($this->never())->method('get');
 
         $this->expectException(ValidationException::class);
-        $mockApi->getTokenOhlcv('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '');
+        $mockApi->getTokenOHLCV('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '');
     }
 
     public function testGetTokenOhlcvValidatesNetworkAndTokenAddress(): void
@@ -612,14 +612,14 @@ class TokensApiTest extends TestCase
         $api = new TokensApi($this->createMockClient([]));
 
         try {
-            $api->getTokenOhlcv('', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '-24h');
+            $api->getTokenOHLCV('', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '-24h');
             $this->fail('Expected ValidationException was not thrown for an empty network ID');
         } catch (ValidationException $e) {
             $this->assertStringContainsString('Network ID', $e->getMessage());
         }
 
         try {
-            $api->getTokenOhlcv('ethereum', '', '-24h');
+            $api->getTokenOHLCV('ethereum', '', '-24h');
             $this->fail('Expected ValidationException was not thrown for an empty token address');
         } catch (ValidationException $e) {
             $this->assertStringContainsString('Token address', $e->getMessage());
@@ -637,7 +637,7 @@ class TokensApiTest extends TestCase
         $api = $this->apiWithResponses([new Response(403, [], $body)], $container);
 
         try {
-            $api->getTokenOhlcv('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '-24h');
+            $api->getTokenOHLCV('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '-24h');
             $this->fail('Expected ClientException was not thrown');
         } catch (ClientException $e) {
             $this->assertSame(403, $e->getCode());

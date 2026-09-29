@@ -187,7 +187,7 @@ class TokensApi extends BaseApi
      * @return array<string, mixed>|object OHLCV candles for the token
      * @throws ValidationException If parameters are invalid
      */
-    public function getTokenOhlcv(string $networkId, string $tokenAddress, string $start, array $options = [])
+    public function getTokenOHLCV(string $networkId, string $tokenAddress, string $start, array $options = [])
     {
         if (empty($networkId) || trim($networkId) === '') {
             throw new ValidationException('Network ID is required and cannot be empty');
