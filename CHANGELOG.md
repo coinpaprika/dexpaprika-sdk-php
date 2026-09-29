@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-09-29
+
+### Added
+- **`$client->tokens->getTokenOhlcv()`**, backed by the new `GET /networks/{network}/tokens/{token_address}/ohlcv`. Candles are a volume-weighted USD price built across every pool the token trades in on the network, with volume summed the same way; same record shape as `getPoolOHLCV()`. There is no `inversed` option, because a USD price has no pair side to flip. Same `start`/`end`/`interval`/`limit` handling as pool OHLCV, including the 1 to 1000 `limit` range. Requires a Dev, Pro or Enterprise plan, called against `api-pro.dexpaprika.com` with the API key set as the whole `Authorization` value; a keyless or free-key call gets `403` and the thrown `ClientException` carries the API's message. Dev plans see up to the last 30 days of history.
+
 ## [1.10.1] - 2026-09-28
 
 ### Fixed

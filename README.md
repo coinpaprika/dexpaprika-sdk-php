@@ -345,6 +345,40 @@ $pairPools = array_filter($tokenPools['results'], function ($pool) use ($usdc) {
 });
 ```
 
+### Token OHLCV
+
+Candles for a token, priced in USD: a volume-weighted price built across every
+pool the token trades in on the network, with volume summed the same way. Same
+record shape as pool OHLCV, and no `inversed` option, because a USD price has
+no pair side to flip.
+
+This endpoint needs a Dev, Pro or Enterprise plan and must be called against
+`api-pro.dexpaprika.com` with the API key set as the whole `Authorization`
+value:
+
+```php
+$config = (new Config())
+    ->setApiKey('api_your_dev_or_pro_key')
+    ->setBaseUrl('https://api-pro.dexpaprika.com');
+$client = new Client(null, null, false, $config);
+
+$tokenOhlcv = $client->tokens->getTokenOhlcv(
+    'ethereum',
+    '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+    '-24h',
+    [
+        'interval' => '1h',
+        'limit' => 24,
+    ]
+);
+```
+
+A keyless or free-key call gets `403`, and `getTokenOhlcv()` throws a
+`ClientException` carrying the API's message. See
+[Get OHLCV data for a token](https://docs.dexpaprika.com/api-reference/tokens/get-ohlcv-data-for-a-token)
+and current plan details on the
+[pricing page](https://dexpaprika.com/api/pricing).
+
 ### Pool Filtering
 
 ```php

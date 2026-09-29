@@ -160,6 +160,73 @@ class TokensApi extends BaseApi
     }
 
     /**
+     * Get OHLCV candles for a token, priced in USD
+     *
+     * The candles are a volume-weighted USD price built across every pool the
+     * token trades in on the network; volume is USD traded summed across those
+     * pools. This is a token-level view, not a single pool, so unlike
+     * {@see PoolsApi::getPoolOHLCV()} there is no `inversed` option: a token
+     * priced in USD has no pair side to flip.
+     *
+     * Requires a Dev, Pro or Enterprise plan, called against
+     * api-pro.dexpaprika.com with the API key set as the whole Authorization
+     * value (see Config::setApiKey() and Config::setBaseUrl()). Keyless and
+     * free-key callers get a 403 whose message this method's caller can read
+     * off the thrown ClientException. Dev plans see up to the last 30 days of
+     * history.
+     *
+     * @param string $networkId Network ID (e.g., ethereum, solana)
+     * @param string $tokenAddress Token address or identifier
+     * @param string $start Start time for historical data: a relative offset from now such as '-24h'
+     *  or '-7d', RFC 3339, YYYY-MM-DD, or a Unix timestamp.
+     * @param array<string, mixed> $options Additional options:
+     *  - string $end: End time for historical data, same formats as $start
+     *  - string $interval: Candle interval, one of 1m 5m 10m 15m 30m 1h 6h 12h 24h (server default: 24h)
+     *  - int $limit: Number of candles to retrieve (server default: 10, max: 1000)
+     *  - bool $asObject: Whether to return the response as an object (default: false)
+     * @return array<string, mixed>|object OHLCV candles for the token
+     * @throws ValidationException If parameters are invalid
+     */
+    public function getTokenOhlcv(string $networkId, string $tokenAddress, string $start, array $options = [])
+    {
+        if (empty($networkId) || trim($networkId) === '') {
+            throw new ValidationException('Network ID is required and cannot be empty');
+        }
+
+        if (empty($tokenAddress) || trim($tokenAddress) === '') {
+            throw new ValidationException('Token address is required and cannot be empty');
+        }
+
+        if (empty($start)) {
+            throw new ValidationException('Start parameter is required for OHLCV data');
+        }
+
+        if (isset($options['limit']) && ($options['limit'] < 1 || $options['limit'] > 1000)) {
+            throw new ValidationException('Limit must be between 1 and 1000 for OHLCV data');
+        }
+
+        $params = [
+            'start' => $start,
+        ];
+
+        if (isset($options['end'])) {
+            $params['end'] = $options['end'];
+        }
+
+        if (isset($options['interval'])) {
+            $params['interval'] = $options['interval'];
+        }
+
+        if (isset($options['limit'])) {
+            $params['limit'] = $options['limit'];
+        }
+
+        $response = $this->get("/networks/{$networkId}/tokens/{$tokenAddress}/ohlcv", $params);
+
+        return $this->transformResponse($response, $options['asObject'] ?? false);
+    }
+
+    /**
      * Get top tokens on a network ranked by volume, liquidity, or other metrics
      *
      * Backed by the unified /networks/{network}/tokens/search endpoint, which is
