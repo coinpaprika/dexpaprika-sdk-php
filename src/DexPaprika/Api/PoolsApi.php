@@ -214,7 +214,7 @@ class PoolsApi extends BaseApi
             $params['inversed'] = $options['inversed'];
         }
 
-        $response = $this->get("/networks/{$networkId}/pools/{$poolAddress}/ohlcv", $params);
+        $response = self::withVolume($this->get("/networks/{$networkId}/pools/{$poolAddress}/ohlcv", $params));
         
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
