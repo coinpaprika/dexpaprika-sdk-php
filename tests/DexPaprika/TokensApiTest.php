@@ -6,6 +6,7 @@ use DexPaprika\Api\TokensApi;
 use DexPaprika\Config;
 use DexPaprika\Exception\ClientException;
 use DexPaprika\Exception\NotFoundException;
+use DexPaprika\Exception\ServerException;
 use DexPaprika\Exception\DexPaprikaApiException;
 use DexPaprika\Exception\ValidationException;
 use GuzzleHttp\Client;
@@ -645,5 +646,43 @@ class TokensApiTest extends TestCase
             // 403 is not retryable: a single request must have been made.
             $this->assertCount(1, $container);
         }
+    }
+
+    public function testEdge5xxBodyBecomesServerExceptionWithItsMessage(): void
+    {
+        // Captured from api-pro on 2026-09-29 for an unknown token address.
+        $container = [];
+        $api = $this->apiWithResponses([
+            new Response(500, [], json_encode([
+                'success' => false,
+                'error' => ['code' => 'ORIGIN_ERROR', 'message' => 'Upstream service failed to respond successfully.'],
+            ])),
+        ], $container);
+
+        try {
+            $api->getTokenOHLCV('ethereum', '0x0000000000000000000000000000000000000001', '-24h');
+            $this->fail('expected an exception');
+        } catch (ServerException $e) {
+            $this->assertSame('Upstream service failed to respond successfully.', $e->getMessage());
+            $this->assertSame(500, $e->getCode());
+        }
+    }
+
+    public function testCandleWithoutVolumeComesBackWithVolumeZero(): void
+    {
+        // A real 1m UNI candle from api-pro on 2026-09-29: USD volume under $1,
+        // so the API left the field out (coinpaprika/dexpaprika-go#2430).
+        $container = [];
+        $api = $this->apiWithResponses([
+            new Response(200, [], json_encode([
+                ['time_open' => '2026-09-29T09:12:00Z', 'time_close' => '2026-09-29T09:13:00Z', 'open' => 8.97, 'high' => 8.98, 'low' => 8.97, 'close' => 8.98, 'volume' => 152],
+                ['time_open' => '2026-09-29T09:13:00Z', 'time_close' => '2026-09-29T09:14:00Z', 'open' => 8.977335891233913, 'high' => 8.977335891233913, 'low' => 8.977335891233913, 'close' => 8.977335891233913],
+            ])),
+        ], $container);
+
+        $rows = $api->getTokenOHLCV('ethereum', '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984', '-2h', ['interval' => '1m']);
+
+        $this->assertSame(152, $rows[0]['volume']);
+        $this->assertSame(0, $rows[1]['volume']);
     }
 }

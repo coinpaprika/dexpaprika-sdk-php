@@ -221,7 +221,7 @@ class TokensApi extends BaseApi
             $params['limit'] = $options['limit'];
         }
 
-        $response = $this->get("/networks/{$networkId}/tokens/{$tokenAddress}/ohlcv", $params);
+        $response = self::withVolume($this->get("/networks/{$networkId}/tokens/{$tokenAddress}/ohlcv", $params));
 
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }

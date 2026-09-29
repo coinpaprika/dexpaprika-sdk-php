@@ -388,9 +388,7 @@ abstract class BaseApi
      */
     protected function createExceptionFromResponse(int $statusCode, ?array $errorData = null): DexPaprikaApiException
     {
-        // Prefer the API's "message" field; fall back to legacy "error", then a generic label.
-        // The "??" chain is null-safe even when $errorData is null.
-        $message = $errorData['message'] ?? $errorData['error'] ?? 'Unknown error';
+        $message = self::errorText($errorData);
 
         // Generic deprecation self-documentation: any error whose body carries a
         // "replacement" hint (regardless of status code) gets that hint surfaced in
@@ -417,5 +415,52 @@ abstract class BaseApi
         }
 
         return $exception;
+    }
+
+    /**
+     * The human-readable message in an error body.
+     *
+     * The API sends {"message": "..."} or a legacy {"error": "..."}. The edge in
+     * front of it answers 5xx with {"success": false, "error": {"code": "...",
+     * "message": "..."}}, where "error" is an object; passing that to an exception
+     * constructor threw a TypeError instead of the API error.
+     *
+     * @param array<string, mixed>|null $errorData
+     */
+    protected static function errorText(?array $errorData): string
+    {
+        if (isset($errorData['message']) && is_string($errorData['message']) && $errorData['message'] !== '') {
+            return $errorData['message'];
+        }
+        $error = $errorData['error'] ?? null;
+        if (is_string($error) && $error !== '') {
+            return $error;
+        }
+        if (is_array($error) && isset($error['message']) && is_string($error['message'])) {
+            return $error['message'];
+        }
+        return 'Unknown error';
+    }
+
+    /**
+     * Fill a missing "volume" with 0 on OHLCV rows.
+     *
+     * The API leaves "volume" out of a candle whose USD volume rounds down to 0
+     * (coinpaprika/dexpaprika-go#2430).
+     *
+     * @param mixed $rows
+     * @return mixed
+     */
+    protected static function withVolume($rows)
+    {
+        if (!is_array($rows) || array_values($rows) !== $rows) {
+            return $rows;
+        }
+        foreach ($rows as $i => $row) {
+            if (is_array($row) && isset($row['time_open']) && !array_key_exists('volume', $row)) {
+                $rows[$i]['volume'] = 0;
+            }
+        }
+        return $rows;
     }
 }
