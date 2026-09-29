@@ -3,11 +3,15 @@
 namespace DexPaprika\Tests;
 
 use DexPaprika\Api\TokensApi;
+use DexPaprika\Config;
+use DexPaprika\Exception\ClientException;
 use DexPaprika\Exception\NotFoundException;
 use DexPaprika\Exception\DexPaprikaApiException;
+use DexPaprika\Exception\ValidationException;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
 
@@ -484,5 +488,162 @@ class TokensApiTest extends TestCase
             'priceChangePercentage1hMin' => 10,
             'priceChangePercentage5mMin' => 10,
         ]);
+    }
+
+    /**
+     * Build a TokensApi wired to a fixed set of mock HTTP responses, exercising
+     * the real request() path (retries, error mapping) rather than mocking get().
+     *
+     * @param array<int, Response> $responses
+     * @param array<int, mixed> $container History container passed by reference
+     */
+    private function apiWithResponses(array $responses, array &$container): TokensApi
+    {
+        $mock = new MockHandler($responses);
+        $handlerStack = HandlerStack::create($mock);
+        $handlerStack->push(Middleware::history($container));
+        $httpClient = new Client(['handler' => $handlerStack]);
+
+        $config = new Config();
+        $config->setMaxRetries(0);
+
+        return new TokensApi($httpClient, false, $config);
+    }
+
+    public function testGetTokenOhlcvSendsPathAndQueryWithoutInversed(): void
+    {
+        // Same record shape as pool OHLCV; the wire response is a bare JSON array.
+        $expectedResponse = [
+            [
+                'time_open' => '2026-09-28T00:00:00Z',
+                'time_close' => '2026-09-29T00:00:00Z',
+                'open' => 1.5,
+                'high' => 1.6,
+                'low' => 1.4,
+                'close' => 1.55,
+                'volume' => 1000000,
+            ],
+        ];
+
+        $mockApi = $this->getMockBuilder(TokensApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+
+        $mockApi->expects($this->once())
+            ->method('get')
+            ->with(
+                $this->equalTo('/networks/ethereum/tokens/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2/ohlcv'),
+                $this->equalTo([
+                    'start' => '-24h',
+                    'end' => '-1h',
+                    'interval' => '1h',
+                    'limit' => 24,
+                ])
+            )
+            ->willReturn($expectedResponse);
+
+        // Pass 'inversed', matching a caller carrying it over by habit from pool
+        // OHLCV: it must never reach the query, because the endpoint has no such
+        // parameter.
+        $result = $mockApi->getTokenOHLCV(
+            'ethereum',
+            '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+            '-24h',
+            [
+                'end' => '-1h',
+                'interval' => '1h',
+                'limit' => 24,
+                'inversed' => true,
+            ]
+        );
+
+        $this->assertEquals($expectedResponse, $result);
+    }
+
+    public function testGetTokenOhlcvMinimalRequest(): void
+    {
+        $mockApi = $this->getMockBuilder(TokensApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+
+        $mockApi->expects($this->once())
+            ->method('get')
+            ->with(
+                $this->equalTo('/networks/solana/tokens/So11111111111111111111111111111111111111112/ohlcv'),
+                $this->equalTo(['start' => '-7d'])
+            )
+            ->willReturn([]);
+
+        $mockApi->getTokenOHLCV('solana', 'So11111111111111111111111111111111111111112', '-7d');
+    }
+
+    public function testGetTokenOhlcvValidatesLimitParameter(): void
+    {
+        $mockApi = $this->getMockBuilder(TokensApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+        $mockApi->expects($this->once())->method('get')->willReturn([]);
+
+        // 1000 is accepted.
+        $mockApi->getTokenOHLCV('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '-24h', ['limit' => 1000]);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Limit must be between 1 and 1000');
+        $mockApi->getTokenOHLCV('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '-24h', ['limit' => 1001]);
+    }
+
+    public function testGetTokenOhlcvRequiresStart(): void
+    {
+        $mockApi = $this->getMockBuilder(TokensApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+        $mockApi->expects($this->never())->method('get');
+
+        $this->expectException(ValidationException::class);
+        $mockApi->getTokenOHLCV('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '');
+    }
+
+    public function testGetTokenOhlcvValidatesNetworkAndTokenAddress(): void
+    {
+        $api = new TokensApi($this->createMockClient([]));
+
+        try {
+            $api->getTokenOHLCV('', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '-24h');
+            $this->fail('Expected ValidationException was not thrown for an empty network ID');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('Network ID', $e->getMessage());
+        }
+
+        try {
+            $api->getTokenOHLCV('ethereum', '', '-24h');
+            $this->fail('Expected ValidationException was not thrown for an empty token address');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('Token address', $e->getMessage());
+        }
+    }
+
+    public function testGetTokenOhlcvOnA403SurfacesThePlanMessage(): void
+    {
+        // A Dev/Pro-only endpoint called without a qualifying plan: the API's
+        // own message ("this endpoint requires a Dev or Pro plan") must reach
+        // the caller through the thrown exception, not a generic label.
+        $body = json_encode(['message' => 'this endpoint requires a Dev or Pro plan']);
+
+        $container = [];
+        $api = $this->apiWithResponses([new Response(403, [], $body)], $container);
+
+        try {
+            $api->getTokenOHLCV('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', '-24h');
+            $this->fail('Expected ClientException was not thrown');
+        } catch (ClientException $e) {
+            $this->assertSame(403, $e->getCode());
+            $this->assertSame('this endpoint requires a Dev or Pro plan', $e->getMessage());
+            // 403 is not retryable: a single request must have been made.
+            $this->assertCount(1, $container);
+        }
     }
 }
