@@ -26,6 +26,11 @@ use DexPaprika\Exception\DeprecationException;
 abstract class BaseApi
 {
     /**
+     * Indicator values the technical-indicator endpoints accept.
+     */
+    protected const ALLOWED_INDICATORS = ['rsi', 'ema', 'macd', 'bbands', 'vwap'];
+
+    /**
      * @var ClientInterface HTTP client
      */
     protected ClientInterface $httpClient;
@@ -440,6 +445,58 @@ abstract class BaseApi
             return $error['message'];
         }
         return 'Unknown error';
+    }
+
+    /**
+     * Build query parameters for a technical-indicator request (pool or token).
+     *
+     * `indicator` is required and must be one of self::ALLOWED_INDICATORS;
+     * everything else is forwarded only when the caller set it. `period`
+     * belongs to rsi, ema, bbands and vwap; `fast_period`, `slow_period` and
+     * `signal_period` belong to macd; `std_dev` belongs to bbands. The API
+     * itself refuses a parameter sent for the wrong indicator (400
+     * invalid_param), so this never fills in a default for one the caller
+     * did not ask for.
+     *
+     * @param string $indicator One of 'rsi', 'ema', 'macd', 'bbands', 'vwap'
+     * @param array<string, mixed> $options Additional options:
+     *  - string $interval: Candle interval (server picks a default when unset)
+     *  - int $limit: Values per response, 1 to 1000
+     *  - string $start: First candle: a relative offset such as '-6h', Unix seconds, RFC 3339 or YYYY-MM-DD
+     *  - string $end: Exclusive end, same formats as $start
+     *  - string $cursor: Opaque cursor from a previous response's next_cursor (do not combine with $start)
+     *  - int $period: rsi, ema, bbands, vwap only
+     *  - int $fast_period: macd only
+     *  - int $slow_period: macd only, must be greater than $fast_period
+     *  - int $signal_period: macd only
+     *  - float $std_dev: bbands only
+     * @return array<string, mixed> The query parameters
+     * @throws ValidationException If $indicator is not one of the allowed values, or $limit is out of range
+     */
+    protected function buildIndicatorParams(string $indicator, array $options): array
+    {
+        if (!in_array($indicator, self::ALLOWED_INDICATORS, true)) {
+            throw new ValidationException(
+                'Invalid indicator. Must be one of: ' . implode(', ', self::ALLOWED_INDICATORS)
+            );
+        }
+
+        if (isset($options['limit']) && ($options['limit'] < 1 || $options['limit'] > 1000)) {
+            throw new ValidationException('Limit must be between 1 and 1000 for indicator data');
+        }
+
+        $params = ['indicator' => $indicator];
+
+        foreach ([
+            'interval', 'limit', 'start', 'end', 'cursor',
+            'period', 'fast_period', 'slow_period', 'signal_period', 'std_dev',
+        ] as $key) {
+            if (isset($options[$key])) {
+                $params[$key] = $options[$key];
+            }
+        }
+
+        return $params;
     }
 
     /**

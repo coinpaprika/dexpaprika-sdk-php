@@ -227,6 +227,51 @@ class TokensApi extends BaseApi
     }
 
     /**
+     * Get a technical indicator for a token
+     *
+     * Requires a Dev, Pro or Enterprise plan, called against
+     * api-pro.dexpaprika.com with the API key set as the whole Authorization
+     * value (see Config::setApiKey() and Config::setBaseUrl()). Keyless and
+     * free-key callers get a 403 whose message and required_tier this
+     * method's caller can read off the thrown ClientException's
+     * getErrorData().
+     *
+     * @param string $networkId Network ID (e.g., ethereum, solana)
+     * @param string $tokenAddress Token address or identifier
+     * @param string $indicator One of 'rsi', 'ema', 'macd', 'bbands', 'vwap'
+     * @param array<string, mixed> $options Additional options:
+     *  - string $interval: Candle interval (server picks a default when unset)
+     *  - int $limit: Values per response, 1 to 1000 (server default: 100)
+     *  - string $start: First candle: a relative offset such as '-6h', Unix seconds, RFC 3339 or YYYY-MM-DD
+     *  - string $end: Exclusive end, same formats as $start, default now
+     *  - string $cursor: Opaque cursor from a previous response's next_cursor (do not combine with $start)
+     *  - int $period: rsi, ema, bbands, vwap only
+     *  - int $fast_period: macd only
+     *  - int $slow_period: macd only, must be greater than $fast_period
+     *  - int $signal_period: macd only
+     *  - float $std_dev: bbands only
+     *  - bool $asObject: Whether to return the response as an object (default: false)
+     * @return array<string, mixed>|object Technical indicator values for the token
+     * @throws ValidationException If parameters are invalid
+     */
+    public function getTokenIndicator(string $networkId, string $tokenAddress, string $indicator, array $options = [])
+    {
+        if (empty($networkId) || trim($networkId) === '') {
+            throw new ValidationException('Network ID is required and cannot be empty');
+        }
+
+        if (empty($tokenAddress) || trim($tokenAddress) === '') {
+            throw new ValidationException('Token address is required and cannot be empty');
+        }
+
+        $params = $this->buildIndicatorParams($indicator, $options);
+
+        $response = $this->get("/networks/{$networkId}/tokens/{$tokenAddress}/indicators", $params);
+
+        return $this->transformResponse($response, $options['asObject'] ?? false);
+    }
+
+    /**
      * Get top tokens on a network ranked by volume, liquidity, or other metrics
      *
      * Backed by the unified /networks/{network}/tokens/search endpoint, which is

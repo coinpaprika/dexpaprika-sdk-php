@@ -379,6 +379,61 @@ A keyless or free-key call gets `403`, and `getTokenOHLCV()` throws a
 and current plan details on the
 [pricing page](https://dexpaprika.com/api/pricing).
 
+### Technical indicators
+
+`getPoolIndicator()` and `getTokenIndicator()` compute `rsi`, `ema`, `macd`,
+`bbands` or `vwap` over a pool's or token's OHLCV candles. Only the parameters
+the chosen indicator uses should be set: `period` for rsi, ema, bbands and
+vwap; `fast_period`, `slow_period` and `signal_period` for macd; `std_dev` for
+bbands. Sending a parameter that belongs to a different indicator is refused
+by the API with a 400.
+
+Pool indicators work on every plan, with the same interval and history limits
+as pool OHLCV above, so this RSI call works without a key:
+
+```php
+$rsi = $client->pools->getPoolIndicator('ethereum', '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640',
+    'rsi', [
+        'interval' => '1h',
+        'start' => '-6h',
+    ]
+);
+foreach ($rsi['data'] as $point) {
+    echo $point['timestamp'] . ': ' . $point['value'] . "\n";
+}
+
+// MACD on the same pool: 'data' rows carry macd, signal and histogram instead of value
+$macd = $client->pools->getPoolIndicator('ethereum', '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640',
+    'macd', [
+        'interval' => '1h',
+        'start' => '-6h',
+    ]
+);
+```
+
+Token indicators need a Dev, Pro or Enterprise key and must be called against
+`api-pro.dexpaprika.com`, the same host as `getTokenOHLCV()`:
+
+```php
+$tokenRsi = $client->tokens->getTokenIndicator('ethereum', '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+    'rsi', [
+        'interval' => '1h',
+        'start' => '-6h',
+    ]
+);
+```
+
+A keyless or free-key call to `getTokenIndicator()` gets `403`, and the thrown
+`ClientException` carries the API's message; `getErrorData()['required_tier']`
+names the plan that lifts the limit. See
+[Get a technical indicator for a pool](https://docs.dexpaprika.com/api-reference/pools/get-a-technical-indicator-for-a-pool),
+[Get a technical indicator for a token](https://docs.dexpaprika.com/api-reference/tokens/get-a-technical-indicator-for-a-token),
+the [technical indicators tutorial](https://docs.dexpaprika.com/tutorials/technical-indicators),
+current rate limits on the
+[rate limits page](https://docs.dexpaprika.com/knowledge-base/rate-limits),
+plan pricing on the [pricing page](https://dexpaprika.com/api/pricing), and
+get a free key at [console.dexpaprika.com](https://console.dexpaprika.com).
+
 ### Pool Filtering
 
 ```php

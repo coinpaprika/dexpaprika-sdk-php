@@ -220,6 +220,45 @@ class PoolsApi extends BaseApi
     }
 
     /**
+     * Get a technical indicator for a pool
+     *
+     * All five indicators work on every plan, with the same interval and
+     * history limits as {@see getPoolOHLCV()}. See
+     * https://docs.dexpaprika.com/knowledge-base/rate-limits for the current
+     * numbers by plan and https://dexpaprika.com/api/pricing for keys and
+     * pricing; this SDK does not hard-code either.
+     *
+     * @param string $networkId Network ID (e.g., ethereum, solana)
+     * @param string $poolAddress Pool address or identifier
+     * @param string $indicator One of 'rsi', 'ema', 'macd', 'bbands', 'vwap'
+     * @param array<string, mixed> $options Additional options:
+     *  - string $interval: Candle interval (server picks a default when unset)
+     *  - int $limit: Values per response, 1 to 1000 (server default: 100)
+     *  - string $start: First candle: a relative offset such as '-6h', Unix seconds, RFC 3339 or YYYY-MM-DD
+     *  - string $end: Exclusive end, same formats as $start, default now
+     *  - string $cursor: Opaque cursor from a previous response's next_cursor (do not combine with $start)
+     *  - int $period: rsi, ema, bbands, vwap only
+     *  - int $fast_period: macd only
+     *  - int $slow_period: macd only, must be greater than $fast_period
+     *  - int $signal_period: macd only
+     *  - float $std_dev: bbands only
+     *  - bool $asObject: Whether to return the response as an object (default: false)
+     * @return array<string, mixed>|object Technical indicator values for the pool
+     * @throws ValidationException If $indicator or $limit is invalid
+     */
+    public function getPoolIndicator(string $networkId, string $poolAddress, string $indicator, array $options = [])
+    {
+        $this->validateNetworkId($networkId);
+        $this->validatePoolAddress($poolAddress);
+
+        $params = $this->buildIndicatorParams($indicator, $options);
+
+        $response = $this->get("/networks/{$networkId}/pools/{$poolAddress}/indicators", $params);
+
+        return $this->transformResponse($response, $options['asObject'] ?? false);
+    }
+
+    /**
      * Get transactions of a pool on a network
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)
