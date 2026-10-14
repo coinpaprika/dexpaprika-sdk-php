@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.12.0] - 2026-10-14
 
 ### Added
 - **`$client->pools->getPoolIndicator()`** and **`$client->tokens->getTokenIndicator()`**, backed by the new `GET /networks/{network}/pools/{pool_address}/indicators` and `GET /networks/{network}/tokens/{token_address}/indicators`. Both compute `rsi`, `ema`, `macd`, `bbands` or `vwap` over OHLCV candles; `indicator` is required and validated against that list, and every other option (`interval`, `limit`, `start`, `end`, `cursor`, `period`, `fast_period`, `slow_period`, `signal_period`, `std_dev`) is forwarded only when the caller sets it, since the API refuses a parameter sent for the wrong indicator with a 400. Pool indicators work on every plan with the same interval and history limits as pool OHLCV; token indicators need a Dev, Pro or Enterprise plan on `api-pro.dexpaprika.com`, and a keyless or free-key call gets `403` with `required_tier` on the thrown `ClientException`'s `getErrorData()`.
