@@ -3,6 +3,7 @@
 require __DIR__ . '/../vendor/autoload.php';
 
 use DexPaprika\Client;
+use DexPaprika\Config;
 use DexPaprika\Exception\DexPaprikaApiException;
 
 /**
@@ -16,7 +17,17 @@ use DexPaprika\Exception\DexPaprikaApiException;
  * 'page_info'.
  */
 
-$client = new Client();
+// Every pagination example below walks a cursor-paginated search endpoint.
+// Paging past the first page needs an API key; a free key pages without
+// limit. Set DEXPAPRIKA_API_KEY in the environment to supply one, or get a
+// free key at https://console.dexpaprika.com. Without a key, the second page
+// in each example throws once the API's keyless-paging 403 lands.
+$config = new Config();
+$apiKey = getenv(Config::API_KEY_ENV_VAR);
+if ($apiKey !== false) {
+    $config->setApiKey($apiKey);
+}
+$client = new Client(null, null, false, $config);
 
 try {
     echo "PAGINATION EXAMPLES\n";

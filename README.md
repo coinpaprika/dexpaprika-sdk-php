@@ -28,7 +28,11 @@ foreach ($pools['results'] as $pool) {
     echo $pool['id'] . ' ' . $pool['volume_usd_24h'];
 }
 
-// Page with the cursor
+// Page with the cursor. Paging past the first page needs an API key (a free
+// key pages without limit), configured before the client that uses it:
+// https://console.dexpaprika.com
+$config = (new Config())->setApiKey(getenv('DEXPAPRIKA_API_KEY'));
+$client = new Client(null, null, false, $config);
 $next = $client->dexes->getDexPools('ethereum', 'uniswap_v3', [
     'limit' => 15,
     'cursor' => $pools['next_cursor'],
@@ -70,7 +74,11 @@ $page['results'];        // array of items
 $page['has_next_page'];  // bool
 $page['next_cursor'];    // string|null
 
-// Fetch the next page with the cursor
+// Fetch the next page with the cursor. Paging past the first page needs an
+// API key (a free key pages without limit), configured before the client
+// that uses it: https://console.dexpaprika.com
+$config = (new Config())->setApiKey(getenv('DEXPAPRIKA_API_KEY'));
+$client = new Client(null, null, false, $config);
 $next = $client->pools->getNetworkPools('ethereum', [
     'limit' => 20,
     'cursor' => $page['next_cursor'],
@@ -146,6 +154,14 @@ try {
 
 **The SDK works without a key.** No signup, no card. Everything
 below is optional.
+
+**One exception: paging search results past the first page needs a key.**
+`pools/search`, `tokens/search` and the methods backed by them
+(`getNetworkPools()`, `getDexPools()`, `getTokenPools()`, `filterPools()`,
+`filterTokens()`, `getTopTokens()`) serve the first page keyless, limit and
+all. Asking for a second page (passing `cursor`) without a key gets a `403`
+from the API. Any key, a free one included, pages without limit. Register at
+https://console.dexpaprika.com.
 
 A free key raises the monthly credit allowance. It does **not** raise the
 per-minute request limit, which is the same on both free tiers. Current figures
