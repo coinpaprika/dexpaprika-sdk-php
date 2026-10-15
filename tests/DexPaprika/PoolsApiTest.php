@@ -194,7 +194,7 @@ class PoolsApiTest extends TestCase
     {
         // pools/search answers 200 and ignores query parameters it does not know,
         // so a bound the SDK forgets to send comes back as a plausible unfiltered
-        // list rather than an error. Pin all eight names and keep the negatives
+        // list rather than an error. Pin all ten names and keep the negatives
         // negative.
         $mockApi = $this->getMockBuilder(PoolsApi::class)
             ->setConstructorArgs([$this->createMockClient([])])
@@ -209,6 +209,8 @@ class PoolsApiTest extends TestCase
                     'limit' => 10,
                     'order_by' => 'price_change_percentage_1h',
                     'sort' => 'desc',
+                    'price_change_percentage_48h_min' => -90,
+                    'price_change_percentage_48h_max' => -30,
                     'price_change_percentage_24h_min' => -80,
                     'price_change_percentage_24h_max' => -20,
                     'price_change_percentage_6h_min' => -15.5,
@@ -225,6 +227,8 @@ class PoolsApiTest extends TestCase
             'limit' => 10,
             'sortBy' => 'price_change_percentage_1h',
             'sortDir' => 'desc',
+            'priceChangePercentage48hMin' => -90,
+            'priceChangePercentage48hMax' => -30,
             'priceChangePercentage24hMin' => -80,
             'priceChangePercentage24hMax' => -20,
             'priceChangePercentage6hMin' => -15.5,
@@ -233,6 +237,35 @@ class PoolsApiTest extends TestCase
             'priceChangePercentage1hMax' => 500,
             'priceChangePercentage5mMin' => 1,
             'priceChangePercentage5mMax' => 3,
+        ]);
+    }
+
+    public function testFilterPoolsSends48hSortField(): void
+    {
+        // Regression test: before price_change_percentage_48h was added to
+        // SearchParams::POOL_SORT_CANONICAL, sortBy fell through to the
+        // unknown-field fallback and the request went out as order_by=volume_usd_24h
+        // instead, so a caller asking for a 48h sort got 200 with a result set
+        // sorted by the wrong column.
+        $mockApi = $this->getMockBuilder(PoolsApi::class)
+            ->setConstructorArgs([$this->createMockClient([])])
+            ->onlyMethods(['get'])
+            ->getMock();
+
+        $mockApi->expects($this->once())
+            ->method('get')
+            ->with(
+                $this->equalTo('/networks/ethereum/pools/search'),
+                $this->equalTo([
+                    'order_by' => 'price_change_percentage_48h',
+                    'sort' => 'desc',
+                ])
+            )
+            ->willReturn(['results' => [], 'has_next_page' => false, 'next_cursor' => null]);
+
+        $mockApi->filterPools('ethereum', [
+            'sortBy' => 'price_change_percentage_48h',
+            'sortDir' => 'desc',
         ]);
     }
 

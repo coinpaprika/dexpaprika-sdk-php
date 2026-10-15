@@ -450,7 +450,7 @@ echo "Found " . count($filtered['results']) . " pools matching criteria\n";
 
 ### Price change windows
 
-`pools/search` sorts and filters on four price-change windows: 24h, 6h, 1h and 5m.
+`pools/search` sorts and filters on five price-change windows: 48h, 24h, 6h, 1h and 5m.
 Pass the window as `sortBy`, or bound it with the matching min/max option. Bounds are
 percentages, and a max is normally negative because that is how you ask for a drop.
 
@@ -470,13 +470,21 @@ $movers = $client->pools->getNetworkPools('ethereum', [
     'sort' => 'desc',
     'limit' => 10,
 ]);
+
+// Pools up 100% or more over two days
+$doubled = $client->pools->filterPools('ethereum', [
+    'priceChangePercentage48hMin' => 100,
+    'sortBy' => 'price_change_percentage_48h',
+    'sortDir' => 'desc',
+    'limit' => 10,
+]);
 ```
 
 Tighten either bound and the result set can legitimately come back empty, because a
 screen for a sharp hourly drop on a well funded pool matches nothing on a calm day.
 An empty `results[]` there is an answer, not a failure.
 
-The 24h window is the only one of the four that also works on tokens. `getTopTokens()`
+The 24h window is the only one of the five that also works on tokens. `getTopTokens()`
 sorts by `price_change_percentage_24h`, and `filterTokens()` takes the matching bounds:
 
 ```php
@@ -487,7 +495,7 @@ $dropped = $client->tokens->filterTokens('ethereum', [
 ]);
 ```
 
-The 6h, 1h and 5m windows exist on pools only. `tokens/search` returns `400` when you
+The 48h, 6h, 1h and 5m windows exist on pools only. `tokens/search` returns `400` when you
 sort by one of them, silently ignores their filter bounds, and token rows carry no
 short-window price-change field at all.
 

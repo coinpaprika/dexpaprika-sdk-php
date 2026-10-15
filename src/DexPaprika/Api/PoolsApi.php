@@ -70,7 +70,7 @@ class PoolsApi extends BaseApi
      * {@code results[], has_next_page, next_cursor, query}. Each pool exposes
      * id (pool address), chain, dex_id, dex_name, fee, created_at,
      * volume_usd_24h/7d/30d, liquidity_usd, transactions_24h, price_usd,
-     * price_change_percentage_5m/1h/6h/24h and tokens[].
+     * price_change_percentage_5m/1h/6h/24h/48h and tokens[].
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)
      * @param array<string, mixed> $options Additional options:
@@ -323,8 +323,8 @@ class PoolsApi extends BaseApi
      * common case: "down at least 20 percent in the last hour" is
      * {@code 'priceChangePercentage1hMax' => -20}.
      *
-     * Only the 6h, 1h and 5m windows are pools-only. tokens/search returns 400 on
-     * those three sort fields and ignores their bounds. The 24h window works on
+     * Only the 48h, 6h, 1h and 5m windows are pools-only. tokens/search returns 400 on
+     * those sort fields and ignores their bounds. The 24h window works on
      * both endpoints, which is why {@see TokensApi::filterTokens()} carries the
      * same 24h pair.
      *
@@ -342,6 +342,8 @@ class PoolsApi extends BaseApi
      *  - float $liquidityUsdMin: Minimum liquidity in USD
      *  - float $liquidityUsdMax: Maximum liquidity in USD
      *  - int $txns24hMin: Minimum number of transactions in 24h
+     *  - float $priceChangePercentage48hMin: Minimum 48h price change, in percent
+     *  - float $priceChangePercentage48hMax: Maximum 48h price change, in percent
      *  - float $priceChangePercentage24hMin: Minimum 24h price change, in percent
      *  - float $priceChangePercentage24hMax: Maximum 24h price change, in percent
      *  - float $priceChangePercentage6hMin: Minimum 6h price change, in percent
@@ -398,6 +400,12 @@ class PoolsApi extends BaseApi
         }
         if (isset($options['txns24hMin'])) {
             $params['txns_24h_min'] = $options['txns24hMin'];
+        }
+        if (isset($options['priceChangePercentage48hMin'])) {
+            $params['price_change_percentage_48h_min'] = $options['priceChangePercentage48hMin'];
+        }
+        if (isset($options['priceChangePercentage48hMax'])) {
+            $params['price_change_percentage_48h_max'] = $options['priceChangePercentage48hMax'];
         }
         if (isset($options['priceChangePercentage24hMin'])) {
             $params['price_change_percentage_24h_min'] = $options['priceChangePercentage24hMin'];

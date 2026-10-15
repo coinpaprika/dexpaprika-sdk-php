@@ -64,7 +64,7 @@ class DexesApi extends BaseApi
      * {@code results[], has_next_page, next_cursor, query}. Each pool exposes
      * id (pool address), chain, dex_id, dex_name, fee, created_at,
      * created_at_block_number, volume_usd_24h/7d/30d, liquidity_usd,
-     * transactions_24h, price_usd, price_change_percentage_5m/1h/6h/24h and
+     * transactions_24h, price_usd, price_change_percentage_5m/1h/6h/24h/48h and
      * tokens[]. There is no bare volume_usd and no page_info.
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)
