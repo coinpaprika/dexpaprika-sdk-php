@@ -37,6 +37,16 @@ class SearchParamsTest extends TestCase
         }
     }
 
+    public function testMapPoolSortFieldPasses48hWindowThrough(): void
+    {
+        // Regression test: price_change_percentage_48h must reach the wire
+        // unchanged. Before this field was added to POOL_SORT_CANONICAL,
+        // mapPoolSortField() fell through to the unknown-field branch and
+        // returned DEFAULT_SORT_FIELD (volume_usd_24h), so a caller asking
+        // for the 48h sort got 200 with results ordered by volume instead.
+        $this->assertEquals('price_change_percentage_48h', SearchParams::mapPoolSortField('price_change_percentage_48h'));
+    }
+
     public function testShortPriceChangeWindowsArePoolOnly(): void
     {
         // tokens/search returns 400 on these windows and token rows carry no
@@ -45,6 +55,14 @@ class SearchParamsTest extends TestCase
         foreach (['price_change_percentage_6h', 'price_change_percentage_1h', 'price_change_percentage_5m'] as $field) {
             $this->assertEquals('volume_usd_24h', SearchParams::mapTokenSortField($field));
         }
+    }
+
+    public function test48hWindowIsPoolOnly(): void
+    {
+        // tokens/search returns 400 on price_change_percentage_48h and token rows
+        // carry no 48h price-change field at all, so TOKEN_SORT_CANONICAL must
+        // stay unchanged.
+        $this->assertEquals('volume_usd_24h', SearchParams::mapTokenSortField('price_change_percentage_48h'));
     }
 
     public function testMapPoolSortFieldFallsBackToDefault(): void
@@ -114,10 +132,12 @@ class SearchParamsTest extends TestCase
 
     public function testMapPoolFilterParamsLeavesPriceChangeBoundsAlone(): void
     {
-        // These eight are already canonical. The rename table must not touch them,
+        // These ten are already canonical. The rename table must not touch them,
         // and negative bounds have to survive intact because a max on a price change
         // is normally negative.
         $bounds = [
+            'price_change_percentage_48h_min' => 10,
+            'price_change_percentage_48h_max' => -5,
             'price_change_percentage_24h_min' => -50,
             'price_change_percentage_24h_max' => -20,
             'price_change_percentage_6h_min' => 5,

@@ -330,9 +330,9 @@ class TokensApi extends BaseApi
      * Legacy sort-field values and legacy filter parameter names are mapped to the
      * canonical search names so requests do not 400.
      *
-     * 24h is the only price-change window this endpoint honours. The 6h, 1h and 5m
+     * 24h is the only price-change window this endpoint honours. The 48h, 6h, 1h and 5m
      * bounds are accepted with a 200 and then ignored, so they are not exposed here;
-     * {@see PoolsApi::filterPools()} has all four.
+     * {@see PoolsApi::filterPools()} has all five.
      *
      * @param string $networkId Network ID (e.g., ethereum, solana)
      * @param array<string, mixed> $options Filter options:
