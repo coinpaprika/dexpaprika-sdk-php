@@ -12,6 +12,15 @@ $config = new Config();
 $config->setTimeout(30)     // 30 second request timeout
        ->setMaxRetries(3);  // retry transient failures three times
 
+// The pagination example below walks the cursor-paginated pools/search
+// endpoint past its first page, which needs an API key; a free key pages
+// without limit. Set DEXPAPRIKA_API_KEY in the environment to supply one, or
+// get a free key at https://console.dexpaprika.com.
+$apiKey = getenv(Config::API_KEY_ENV_VAR);
+if ($apiKey !== false) {
+    $config->setApiKey($apiKey);
+}
+
 // Create the client with that configuration. The config is the fourth
 // constructor argument; null keeps the default base URL and HTTP client.
 $client = new Client(null, null, true, $config);

@@ -141,10 +141,21 @@ class Paginator
     /**
      * Get all results by iterating through all pages
      *
+     * Defaults to walking every page ($maxPages = 0, the default, keeps that
+     * behaviour). On the cursor-paginated search endpoints (pools/search,
+     * tokens/search, and the network-scoped methods backed by them, such as
+     * getNetworkPools(), getDexPools() and getTokenPools()), paging past the
+     * first page needs an API key; a free key pages without limit. Called
+     * keyless, this method gets the API's 403 as soon as it asks for a second
+     * page, the same way getNextPage() would, and does not catch it: it
+     * propagates to the caller like any other request failure. Set a key
+     * before calling this for more than one page. Get a free one at
+     * https://console.dexpaprika.com.
+     *
      * @param int $maxPages Maximum number of pages to fetch (0 for all pages)
      * @param callable|null $callback Optional callback function to process each page
      * @return array<int, array<string, mixed>> All results
-     * @throws DexPaprikaApiException If the API request fails
+     * @throws DexPaprikaApiException If the API request fails, including the keyless 403 past the first page
      */
     public function getAllResults(int $maxPages = 0, ?callable $callback = null): array
     {
