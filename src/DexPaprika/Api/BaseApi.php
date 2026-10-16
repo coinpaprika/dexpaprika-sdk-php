@@ -268,7 +268,13 @@ abstract class BaseApi
         $maxRetries = $this->config->getMaxRetries();
         $retryCount = 0;
         $lastException = null;
-        
+        // Carries a Retry-After the server sent on the attempt that just
+        // failed, read fresh each iteration. Without it the client backs off
+        // on its own schedule, which is far too short for a per-minute rate
+        // limit: a 429 clearing in 12s loses every race against a ladder
+        // that tops out around 5s.
+        $serverDelayMs = null;
+
         while ($retryCount <= $maxRetries) {
             try {
                 $options = [];
@@ -309,6 +315,7 @@ abstract class BaseApi
             } catch (ConnectException $e) {
                 $lastException = $e;
                 $shouldRetry = true;
+                $serverDelayMs = null;
                 $this->logger->warning('Connection failed', ['exception' => $e->getMessage(), 'attempt' => $retryCount + 1]);
             } catch (RequestException $e) {
                 // Guzzle 8 removed RequestException::getResponse(). Only
@@ -317,19 +324,31 @@ abstract class BaseApi
                 // below instead of fataling here.
                 $response = $e instanceof BadResponseException ? $e->getResponse() : null;
                 $statusCode = $response ? $response->getStatusCode() : 0;
-                
-                // Only retry on server errors (5xx) and rate limiting (429)
+
+                // Only retry on server errors (5xx) and rate limiting (429).
+                // Every other 4xx is deterministic: retrying only burns the
+                // quota for the same answer.
                 $shouldRetry = ($statusCode >= 500 || $statusCode === 429);
-                
+                $serverDelayMs = null;
+
                 if ($response) {
                     try {
-                        $errorData = json_decode($response->getBody()->getContents(), true);
+                        $rawBody = $response->getBody()->getContents();
+                        $errorData = json_decode($rawBody, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            $errorData = null;
+                        }
                     } catch (\Exception $jsonException) {
+                        $rawBody = '';
                         $errorData = null;
                     }
-                    
-                    $lastException = $this->createExceptionFromResponse($statusCode, $errorData);
-                    
+
+                    if ($shouldRetry) {
+                        $serverDelayMs = self::retryAfterMs($response, $rawBody);
+                    }
+
+                    $lastException = $this->createExceptionFromResponse($statusCode, $errorData, $rawBody);
+
                     $logLevel = $shouldRetry ? 'warning' : 'error';
                     $this->logger->log($logLevel, 'API error', [
                         'status' => $statusCode,
@@ -354,7 +373,14 @@ abstract class BaseApi
             // Get retry delay for current attempt with a small amount of jitter
             $jitter = mt_rand(-50, 50) / 1000; // ±50ms jitter
             $delayMs = $this->config->getRetryDelayForAttempt($retryCount) + ($jitter * 1000);
-            
+
+            // The server's own figure wins when it asked for longer than our
+            // backoff. Retrying earlier than asked just spends another
+            // request on the same 429.
+            if ($serverDelayMs !== null && $serverDelayMs > $delayMs) {
+                $delayMs = $serverDelayMs;
+            }
+
             $this->logger->info(sprintf(
                 'Retrying API request to %s (attempt %d of %d) after %.0f ms',
                 $endpoint,
@@ -362,10 +388,11 @@ abstract class BaseApi
                 $maxRetries,
                 $delayMs
             ));
-            
-            // Sleep for calculated delay in microseconds
-            usleep((int)($delayMs * 1000));
-            
+
+            // Sleep for the calculated delay. Injectable through
+            // Config::setSleeper() so tests do not really wait.
+            ($this->config->getSleeper())((int) round($delayMs));
+
             $retryCount++;
         }
         
@@ -385,14 +412,33 @@ abstract class BaseApi
     }
     
     /**
+     * The message for a 403 whose body is not JSON.
+     *
+     * A key sent to api-pro.dexpaprika.com without the api_ prefix never
+     * reaches the API: Cloudflare answers with its own HTML block page
+     * ("Sorry, you have been blocked"), not the API's JSON error shape. That
+     * body used to decode to null and fall through to "Unknown error". Never
+     * raised when the body is valid JSON (for example the plan_required 403 on
+     * keyless search paging), which keeps its own message untouched.
+     */
+    protected const KEY_REFUSED_BY_EDGE_MESSAGE = 'The API key was refused before it reached the API. '
+        . 'Check that the whole key was pasted into the Authorization header with nothing in front of it. '
+        . 'Keys are at https://console.dexpaprika.com.';
+
+    /**
      * Create an exception from an API response
      *
      * @param int $statusCode HTTP status code
      * @param array<string, mixed>|null $errorData Error data from response
+     * @param string|null $rawBody The raw response body, before any JSON decoding
      * @return DexPaprikaApiException The appropriate exception instance
      */
-    protected function createExceptionFromResponse(int $statusCode, ?array $errorData = null): DexPaprikaApiException
+    protected function createExceptionFromResponse(int $statusCode, ?array $errorData = null, ?string $rawBody = null): DexPaprikaApiException
     {
+        if ($statusCode === 403 && $errorData === null && $rawBody !== null && trim($rawBody) !== '') {
+            return new ClientException(self::KEY_REFUSED_BY_EDGE_MESSAGE, $statusCode, null);
+        }
+
         $message = self::errorText($errorData);
 
         // Generic deprecation self-documentation: any error whose body carries a
@@ -420,6 +466,74 @@ abstract class BaseApi
         }
 
         return $exception;
+    }
+
+    /**
+     * How long the server asked us to wait before retrying, in milliseconds,
+     * or null when it did not say in a form we read.
+     *
+     * Two shapes, because the API uses both. A request carrying an API key
+     * gets a standard `Retry-After` header (observed: "retry-after: 32"). A
+     * keyless request gets a 429 with no such header and the delay only in
+     * the JSON body (observed: {"error":"rate_limited","tier":"keyless",
+     * "retry_after":12,...}). Checked header first since it is cheap and
+     * always present when the API sends it; the body field is the documented
+     * mirror of it.
+     *
+     * Retry-After also permits an HTTP-date form ("Wed, 21 Oct 2026
+     * 07:28:00 GMT"). That form is deliberately not parsed: when the header
+     * is present but not a plain integer, this returns null rather than the
+     * body's value, and the caller falls back to its own backoff. A header
+     * that did answer, just not in a form read here, is not the same as no
+     * header at all.
+     *
+     * The accepted value is clamped to 60 seconds either way, so a hostile or
+     * buggy figure cannot park a caller for an hour.
+     *
+     * @param ResponseInterface $response The response that carried the retryable error
+     * @param string|null $rawBody The raw response body, before any JSON decoding
+     * @return int|null Milliseconds to wait, or null
+     */
+    protected static function retryAfterMs(ResponseInterface $response, ?string $rawBody): ?int
+    {
+        $header = trim($response->getHeaderLine('Retry-After'));
+
+        if ($header !== '') {
+            if (preg_match('/^\d+$/', $header) === 1) {
+                return self::clampServerWaitMs((int) $header * 1000);
+            }
+
+            // Present, but not a plain integer (an HTTP-date, most likely).
+            // Do not parse it and do not fall back to the body either.
+            return null;
+        }
+
+        if ($rawBody === null || $rawBody === '') {
+            return null;
+        }
+
+        $decoded = json_decode($rawBody, true);
+        if (!is_array($decoded) || !isset($decoded['retry_after']) || !is_numeric($decoded['retry_after'])) {
+            return null;
+        }
+
+        $seconds = (float) $decoded['retry_after'];
+        if ($seconds <= 0) {
+            return null;
+        }
+
+        return self::clampServerWaitMs((int) round($seconds * 1000));
+    }
+
+    /**
+     * Clamp a server-requested wait to 60 seconds.
+     *
+     * @param int $milliseconds
+     * @return int
+     */
+    private static function clampServerWaitMs(int $milliseconds): int
+    {
+        return max(0, min($milliseconds, 60000));
     }
 
     /**

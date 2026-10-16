@@ -196,6 +196,14 @@ $config = (new Config())
     ->setBaseUrl('https://api-pro.dexpaprika.com');
 ```
 
+**A malformed key on `api-pro.dexpaprika.com` never reaches the API at all.** It
+gets a `403` straight from the edge in front of it, an HTML page, not the API's
+usual JSON error. The SDK turns that into a `ClientException` whose message says
+the key was refused before it reached the API: check that the whole key was pasted
+into the `Authorization` header with nothing in front of it, and that it is a key
+from https://console.dexpaprika.com. A `403` with a JSON body, such as the
+keyless-paging error above, is unaffected and keeps its own message.
+
 **One gotcha worth knowing.** On the data endpoints a key the API cannot read is
 ignored rather than rejected: the call returns `200` with real data and you are
 quietly served as an anonymous caller. To confirm a key is landing, call `/usage`
@@ -274,6 +282,28 @@ Only certain types of failures will be retried:
 - Network connectivity issues
 - Server errors (5xx status codes)
 - Rate limiting (429 status codes)
+
+**A 429 waits for what the API actually asked for, not just the fixed
+schedule above.** The API sends the wait as a `Retry-After` header on a keyed
+request, or a `retry_after` field in the JSON body on a keyless one (which
+carries no header at all). The SDK checks the header first, then the body,
+and if the server's figure is longer than the next scheduled delay, the
+server's figure is used instead, clamped to 60 seconds. An HTTP-date form of
+the header is not parsed; that case, like a response with neither field, uses
+the schedule above.
+
+Sleeping between retries goes through a function you can replace:
+
+```php
+$config = new Config();
+$sleeps = [];
+$config->setSleeper(function (int $milliseconds) use (&$sleeps) {
+    $sleeps[] = $milliseconds; // record instead of actually waiting
+});
+```
+
+Tests use this to exercise retry behavior, including a 60 second wait,
+without a 60 second test. Leave it unset and the SDK sleeps for real.
 
 ## API Components
 

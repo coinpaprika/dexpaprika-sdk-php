@@ -43,11 +43,22 @@ class Config
     
     /**
      * Retry delay values in milliseconds
-     * 
+     *
      * @var array<int, int>
      */
     private array $retryDelays = [100, 500, 1000, 2500, 5000];
-    
+
+    /**
+     * The function BaseApi calls to wait between retries, or null for the
+     * real one (usleep). Takes the delay in milliseconds.
+     *
+     * Overridable so a test can retry a 429 without really waiting out the
+     * backoff, including a server-requested Retry-After of a minute or more.
+     *
+     * @var callable(int): void|null
+     */
+    private $sleeper = null;
+
     /**
      * Cache implementation
      */
@@ -227,7 +238,44 @@ class Config
         
         return $this->retryDelays[$attempt];
     }
-    
+
+    /**
+     * Set the function BaseApi calls to wait between retries
+     *
+     * Takes a single int argument, the delay in milliseconds, and returns
+     * nothing. Tests set one that records the requested delay instead of
+     * sleeping, so a retry test runs instantly even when the server asked
+     * for a 60 second wait.
+     *
+     * @param callable(int): void $sleeper
+     * @return self
+     */
+    public function setSleeper(callable $sleeper): self
+    {
+        $this->sleeper = $sleeper;
+        return $this;
+    }
+
+    /**
+     * Get the function BaseApi calls to wait between retries
+     *
+     * Returns the real one (usleep) when none was set.
+     *
+     * @return callable(int): void
+     */
+    public function getSleeper(): callable
+    {
+        if ($this->sleeper !== null) {
+            return $this->sleeper;
+        }
+
+        return static function (int $milliseconds): void {
+            if ($milliseconds > 0) {
+                usleep($milliseconds * 1000);
+            }
+        };
+    }
+
     /**
      * Set the cache implementation
      *
