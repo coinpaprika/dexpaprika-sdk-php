@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-10-16
+
+### Added
+- **Paging search results past the first page now needs an API key.** `pools/search`, `tokens/search` and the methods backed by them (`getNetworkPools()`, `getDexPools()`, `getTokenPools()`, `filterPools()`, `filterTokens()`, `getTopTokens()`) still serve the first page keyless, limit and all. Asking for a second page (passing `cursor`) without a key now gets a `403` with `error: plan_required`, `required_tier: free` and `param: cursor` from the API. `DexPaprikaApiException` gained `getErrorCode()`, `getRequiredTier()` and `getParam()` so callers can read that body without a new exception subclass. Any key, a free one included, keeps paging without limit.
+
+### Fixed
+- **Pool search silently ignored a sort by the 48h price-change window.** `price_change_percentage_48h` was missing from the SDK's sort-field allowlist, so `sortBy`/`orderBy` with that value fell through to the default and sent `order_by=volume_usd_24h` instead, the same bug the 6h/1h/5m windows had before they were added. `filterPools()` also gained `priceChangePercentage48hMin`/`Max`. Token search is unchanged: it 400s on this sort field and ignores the filter bounds, same as the other short windows.
+- **A 403 whose body is not JSON reported "Unknown error".** A key sent to `api-pro.dexpaprika.com` without the right prefix never reaches the API: Cloudflare answers with its own HTML block page, not the API's JSON error shape. That body decoded to null and fell through to a generic message. It now throws a `ClientException` that says the key was refused before it reached the API, with guidance to check that the whole key was pasted into the `Authorization` header with nothing in front of it. A 403 with a JSON body, such as the keyless-paging error above, is unaffected and keeps its own message.
+
 ## [1.12.0] - 2026-10-14
 
 ### Added

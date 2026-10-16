@@ -196,6 +196,14 @@ $config = (new Config())
     ->setBaseUrl('https://api-pro.dexpaprika.com');
 ```
 
+**A malformed key on `api-pro.dexpaprika.com` never reaches the API at all.** It
+gets a `403` straight from the edge in front of it, an HTML page, not the API's
+usual JSON error. The SDK turns that into a `ClientException` whose message says
+the key was refused before it reached the API: check that the whole key was pasted
+into the `Authorization` header with nothing in front of it, and that it is a key
+from https://console.dexpaprika.com. A `403` with a JSON body, such as the
+keyless-paging error above, is unaffected and keeps its own message.
+
 **One gotcha worth knowing.** On the data endpoints a key the API cannot read is
 ignored rather than rejected: the call returns `200` with real data and you are
 quietly served as an anonymous caller. To confirm a key is landing, call `/usage`

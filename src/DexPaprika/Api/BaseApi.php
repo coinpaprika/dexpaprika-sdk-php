@@ -323,12 +323,17 @@ abstract class BaseApi
                 
                 if ($response) {
                     try {
-                        $errorData = json_decode($response->getBody()->getContents(), true);
+                        $rawBody = $response->getBody()->getContents();
+                        $errorData = json_decode($rawBody, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            $errorData = null;
+                        }
                     } catch (\Exception $jsonException) {
+                        $rawBody = '';
                         $errorData = null;
                     }
-                    
-                    $lastException = $this->createExceptionFromResponse($statusCode, $errorData);
+
+                    $lastException = $this->createExceptionFromResponse($statusCode, $errorData, $rawBody);
                     
                     $logLevel = $shouldRetry ? 'warning' : 'error';
                     $this->logger->log($logLevel, 'API error', [
@@ -385,14 +390,33 @@ abstract class BaseApi
     }
     
     /**
+     * The message for a 403 whose body is not JSON.
+     *
+     * A key sent to api-pro.dexpaprika.com without the api_ prefix never
+     * reaches the API: Cloudflare answers with its own HTML block page
+     * ("Sorry, you have been blocked"), not the API's JSON error shape. That
+     * body used to decode to null and fall through to "Unknown error". Never
+     * raised when the body is valid JSON (for example the plan_required 403 on
+     * keyless search paging), which keeps its own message untouched.
+     */
+    protected const KEY_REFUSED_BY_EDGE_MESSAGE = 'The API key was refused before it reached the API. '
+        . 'Check that the whole key was pasted into the Authorization header with nothing in front of it. '
+        . 'Keys are at https://console.dexpaprika.com.';
+
+    /**
      * Create an exception from an API response
      *
      * @param int $statusCode HTTP status code
      * @param array<string, mixed>|null $errorData Error data from response
+     * @param string|null $rawBody The raw response body, before any JSON decoding
      * @return DexPaprikaApiException The appropriate exception instance
      */
-    protected function createExceptionFromResponse(int $statusCode, ?array $errorData = null): DexPaprikaApiException
+    protected function createExceptionFromResponse(int $statusCode, ?array $errorData = null, ?string $rawBody = null): DexPaprikaApiException
     {
+        if ($statusCode === 403 && $errorData === null && $rawBody !== null && trim($rawBody) !== '') {
+            return new ClientException(self::KEY_REFUSED_BY_EDGE_MESSAGE, $statusCode, null);
+        }
+
         $message = self::errorText($errorData);
 
         // Generic deprecation self-documentation: any error whose body carries a
