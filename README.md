@@ -283,6 +283,28 @@ Only certain types of failures will be retried:
 - Server errors (5xx status codes)
 - Rate limiting (429 status codes)
 
+**A 429 waits for what the API actually asked for, not just the fixed
+schedule above.** The API sends the wait as a `Retry-After` header on a keyed
+request, or a `retry_after` field in the JSON body on a keyless one (which
+carries no header at all). The SDK checks the header first, then the body,
+and if the server's figure is longer than the next scheduled delay, the
+server's figure is used instead, clamped to 60 seconds. An HTTP-date form of
+the header is not parsed; that case, like a response with neither field, uses
+the schedule above.
+
+Sleeping between retries goes through a function you can replace:
+
+```php
+$config = new Config();
+$sleeps = [];
+$config->setSleeper(function (int $milliseconds) use (&$sleeps) {
+    $sleeps[] = $milliseconds; // record instead of actually waiting
+});
+```
+
+Tests use this to exercise retry behavior, including a 60 second wait,
+without a 60 second test. Leave it unset and the SDK sleeps for real.
+
 ## API Components
 
 This SDK provides the following API modules:
