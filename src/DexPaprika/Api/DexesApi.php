@@ -31,7 +31,7 @@ class DexesApi extends BaseApi
             'orderBy' => 'order_by',
         ]);
         
-        $data = $this->get("/networks/{$networkId}/dexes", $queryParams);
+        $data = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/dexes", $queryParams);
         
         if ($this->transformResponses) {
             return ResponseTransformer::transformDexes($data);
@@ -123,7 +123,7 @@ class DexesApi extends BaseApi
         }
 
         // Use get method instead of direct client access
-        $endpoint = "/networks/{$networkId}/pools/search";
+        $endpoint = "/networks/{$this->pathSegment('networkId', $networkId)}/pools/search";
         $response = $this->get($endpoint, $params);
 
         return $this->transformResponse($response, $options['asObject'] ?? false);

@@ -25,7 +25,7 @@ class TokensApi extends BaseApi
             'tokenAddress' => $tokenAddress,
         ];
 
-        $response = $this->get("/networks/{$networkId}/tokens/{$tokenAddress}", $params);
+        $response = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/tokens/{$this->pathSegment('tokenAddress', $tokenAddress)}", $params);
         
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
@@ -107,7 +107,7 @@ class TokensApi extends BaseApi
             $params['cursor'] = $options['cursor'];
         }
 
-        $response = $this->get("/networks/{$networkId}/pools/search", $params);
+        $response = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/pools/search", $params);
 
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
@@ -221,7 +221,7 @@ class TokensApi extends BaseApi
             $params['limit'] = $options['limit'];
         }
 
-        $response = self::withVolume($this->get("/networks/{$networkId}/tokens/{$tokenAddress}/ohlcv", $params));
+        $response = self::withVolume($this->get("/networks/{$this->pathSegment('networkId', $networkId)}/tokens/{$this->pathSegment('tokenAddress', $tokenAddress)}/ohlcv", $params));
 
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
@@ -266,7 +266,7 @@ class TokensApi extends BaseApi
 
         $params = $this->buildIndicatorParams($indicator, $options);
 
-        $response = $this->get("/networks/{$networkId}/tokens/{$tokenAddress}/indicators", $params);
+        $response = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/tokens/{$this->pathSegment('tokenAddress', $tokenAddress)}/indicators", $params);
 
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
@@ -316,7 +316,7 @@ class TokensApi extends BaseApi
             $params['cursor'] = $options['cursor'];
         }
 
-        $response = $this->get("/networks/{$networkId}/tokens/search", $params);
+        $response = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/tokens/search", $params);
 
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
@@ -413,7 +413,7 @@ class TokensApi extends BaseApi
         // Normalise legacy filter parameter names to their canonical search names.
         $params = SearchParams::mapTokenFilterParams($params);
 
-        $response = $this->get("/networks/{$networkId}/tokens/search", $params);
+        $response = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/tokens/search", $params);
 
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
@@ -446,7 +446,7 @@ class TokensApi extends BaseApi
             'tokens' => implode(',', $tokens),
         ];
 
-        $response = $this->get("/networks/{$networkId}/multi/prices", $params);
+        $response = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/multi/prices", $params);
 
         if ($options['asObject'] ?? false) {
             return array_map(function ($item) {

@@ -71,6 +71,31 @@ abstract class BaseApi
     }
 
     /**
+     * Return $value unchanged if it is safe to place in the request path as one
+     * segment, else throw. A value such as "../../usage" or "x?limit=1000" would
+     * otherwise send the request, and the client's API key, to a different path
+     * or query than the method was written for.
+     *
+     * Refuses an empty value, "." and "..", and any separator or character a URL
+     * parser or the server could decode into one: slash, backslash, "?", "#",
+     * "%", whitespace and control characters. Ids the API returns contain none
+     * of these; Sui and Aptos ids with "::" and TON addresses are unaffected.
+     *
+     * @throws ValidationException
+     */
+    protected function pathSegment(string $name, string $value): string
+    {
+        if ($value === '' || $value === '.' || $value === '..' || preg_match('/[\/\\\\?#%\s\x00-\x1f\x7f]/', $value)) {
+            throw new ValidationException(sprintf(
+                '%s must be a single id or address, got %s',
+                $name,
+                json_encode(substr($value, 0, 100))
+            ));
+        }
+        return $value;
+    }
+
+    /**
      * Make a GET request to the API
      *
      * @param string $endpoint The API endpoint

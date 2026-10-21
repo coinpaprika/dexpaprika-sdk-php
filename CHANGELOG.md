@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.1] - 2026-10-21
+
+### Security
+- Network ids, pool addresses and token addresses are now checked before they go into the request path. A value that is empty, `.` or `..`, or that contains `/`, `\`, `?`, `#`, `%`, whitespace or a control character, throws a `ValidationException` and no request is sent. Until now such a value was placed in the URL as given (only some methods checked the network id), so an application that passed user input to the SDK could be made to send its API key to a different endpoint or with a different query, for example `getPoolDetails('ethereum', '../../../stats')`. Real ids, including Sui and Aptos ids with `::` and TON addresses, are sent unchanged.
+
 ## [1.13.0] - 2026-10-16
 
 ### Added
