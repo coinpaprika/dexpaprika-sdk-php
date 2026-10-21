@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.2] - 2026-10-21
+
+### Security
+- `FilesystemCache`'s default directory, `sys_get_temp_dir() . '/dexpaprika_cache'`, was shared by every local account on the same host and reused on trust if it already existed, with no check of who owned it or who could write into it. Entries were written with PHP's `serialize()` and read back with `unserialize()` and no `allowed_classes` restriction, and a write followed a symlink if one was already at the target path. On a shared host, another local account could pre-create the directory and plant a forged response, or a PHP object-injection payload, ahead of the SDK. The default directory is now private and named after the current user (`dexpaprika_cache_<uid>`), created at mode 0700; an existing directory is used only after confirming it is owned by the current user and carries no permission bit for anyone else, otherwise construction throws. Entries are now JSON, never `serialize()`/`unserialize()`, and each read verifies both that the file is owned by the current user and that it carries a valid HMAC computed with a random, per-installation key generated once and stored privately in the cache directory; a file that fails either check is treated as a cache miss, not trusted data. Writes go through a temporary file and `rename()`, so a pre-planted symlink at the target path is replaced rather than written through. Callers who already pass their own directory to `new FilesystemCache($dir)` keep working, and are held to the same ownership and permission check.
+
 ## [1.13.1] - 2026-10-21
 
 ### Security

@@ -18,7 +18,8 @@ class ApiCacheTest extends TestCase
     {
         // Create a temporary directory for cache testing
         $this->cacheDir = sys_get_temp_dir() . '/dexpaprika-cache-test-' . uniqid();
-        mkdir($this->cacheDir, 0777, true);
+        mkdir($this->cacheDir, 0700, true);
+        chmod($this->cacheDir, 0700); // FilesystemCache now refuses a directory it does not own privately
     }
     
     protected function tearDown(): void
