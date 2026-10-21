@@ -47,7 +47,7 @@ class TransactionsApi extends BaseApi
             $params['to'] = $options['to'];
         }
 
-        $response = $this->get("/networks/{$networkId}/pools/{$poolAddress}/transactions", $params);
+        $response = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/pools/{$this->pathSegment('poolAddress', $poolAddress)}/transactions", $params);
         
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }

@@ -111,7 +111,7 @@ class PoolsApi extends BaseApi
             $params['cursor'] = $options['cursor'];
         }
 
-        $response = $this->get("/networks/{$networkId}/pools/search", $params);
+        $response = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/pools/search", $params);
 
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
@@ -156,7 +156,7 @@ class PoolsApi extends BaseApi
             $params['inversed'] = $options['inversed'];
         }
 
-        $response = $this->get("/networks/{$networkId}/pools/{$poolAddress}", $params);
+        $response = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/pools/{$this->pathSegment('poolAddress', $poolAddress)}", $params);
         
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
@@ -214,7 +214,7 @@ class PoolsApi extends BaseApi
             $params['inversed'] = $options['inversed'];
         }
 
-        $response = self::withVolume($this->get("/networks/{$networkId}/pools/{$poolAddress}/ohlcv", $params));
+        $response = self::withVolume($this->get("/networks/{$this->pathSegment('networkId', $networkId)}/pools/{$this->pathSegment('poolAddress', $poolAddress)}/ohlcv", $params));
         
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
@@ -253,7 +253,7 @@ class PoolsApi extends BaseApi
 
         $params = $this->buildIndicatorParams($indicator, $options);
 
-        $response = $this->get("/networks/{$networkId}/pools/{$poolAddress}/indicators", $params);
+        $response = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/pools/{$this->pathSegment('poolAddress', $poolAddress)}/indicators", $params);
 
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
@@ -306,7 +306,7 @@ class PoolsApi extends BaseApi
             $params['to'] = $options['to'];
         }
 
-        $response = $this->get("/networks/{$networkId}/pools/{$poolAddress}/transactions", $params);
+        $response = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/pools/{$this->pathSegment('poolAddress', $poolAddress)}/transactions", $params);
         
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
@@ -441,7 +441,7 @@ class PoolsApi extends BaseApi
         // Normalise legacy filter parameter names to their canonical search names.
         $params = SearchParams::mapPoolFilterParams($params);
 
-        $response = $this->get("/networks/{$networkId}/pools/search", $params);
+        $response = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/pools/search", $params);
 
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }

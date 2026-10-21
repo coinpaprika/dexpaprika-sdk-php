@@ -67,7 +67,7 @@ class NetworksApi extends BaseApi
             $params['limit'] = $options['limit'];
         }
 
-        $response = $this->get("/networks/{$networkId}/dexes", $params);
+        $response = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/dexes", $params);
 
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
