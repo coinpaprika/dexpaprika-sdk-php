@@ -24,12 +24,15 @@ class DexesApi extends BaseApi
     {
         $this->validateRequired(['networkId' => $networkId], ['networkId']);
         
-        $queryParams = $this->buildQueryParams($options, [
+        // Only the mapped options go on the query; anything else (asObject, a typo)
+        // would be a parameter the endpoint does not accept.
+        $mapping = [
             'page' => 'page',
             'limit' => 'limit',
             'sort' => 'sort',
             'orderBy' => 'order_by',
-        ]);
+        ];
+        $queryParams = $this->buildQueryParams(array_intersect_key($options, $mapping), $mapping);
         
         $data = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/dexes", $queryParams);
         
