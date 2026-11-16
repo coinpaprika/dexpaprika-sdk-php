@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.3] - 2026-11-16
+
+From 23 November 2026 the API answers `400` to a query parameter an endpoint does not accept. Until then it ignores it. Four places in the SDK sent one.
+
+### Fixed
+- `TokensApi::getTokenDetails()` sent the network and token address a second time, as `network` and `tokenAddress` query parameters, on every call. The endpoint takes no query parameters, so from 23 November every call would have failed. The address now travels only in the path.
+- `TransactionsApi::getPoolTransactions()`, and `getRecentTransactions()` and `fetchAllTransactions()` that go through it, did the same with `network` and `poolAddress`. Fixed the same way. `PoolsApi::getPoolTransactions()` was not affected.
+- `TokensApi::filterTokens()` sent `fdvMin` and `fdvMax` as `fdv_min` and `fdv_max`. The API calls them `fdv_usd_min` and `fdv_usd_max`, so today the FDV bounds are ignored and the results are not filtered by FDV. They now go out under the right names.
+- `DexesApi::getNetworkDexes()` forwarded every option as a query parameter, including `asObject`. It now sends only `page`, `limit`, `sort` and `orderBy` (as `order_by`).
+
 ## [1.13.2] - 2026-10-21
 
 ### Security

@@ -22,10 +22,8 @@ class TransactionsApi extends BaseApi
      */
     public function getPoolTransactions(string $networkId, string $poolAddress, array $options = [])
     {
-        $params = [
-            'network' => $networkId,
-            'poolAddress' => $poolAddress,
-        ];
+        // The network and pool address travel in the path, not the query.
+        $params = [];
 
         if (isset($options['limit'])) {
             $params['limit'] = $options['limit'];

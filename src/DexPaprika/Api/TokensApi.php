@@ -20,12 +20,8 @@ class TokensApi extends BaseApi
      */
     public function getTokenDetails(string $networkId, string $tokenAddress, array $options = [])
     {
-        $params = [
-            'network' => $networkId,
-            'tokenAddress' => $tokenAddress,
-        ];
-
-        $response = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/tokens/{$this->pathSegment('tokenAddress', $tokenAddress)}", $params);
+        // The network and address travel in the path; this endpoint takes no query parameters.
+        $response = $this->get("/networks/{$this->pathSegment('networkId', $networkId)}/tokens/{$this->pathSegment('tokenAddress', $tokenAddress)}");
         
         return $this->transformResponse($response, $options['asObject'] ?? false);
     }
@@ -389,10 +385,10 @@ class TokensApi extends BaseApi
             $params['liquidity_usd_min'] = $options['liquidityUsdMin'];
         }
         if (isset($options['fdvMin'])) {
-            $params['fdv_min'] = $options['fdvMin'];
+            $params['fdv_usd_min'] = $options['fdvMin'];
         }
         if (isset($options['fdvMax'])) {
-            $params['fdv_max'] = $options['fdvMax'];
+            $params['fdv_usd_max'] = $options['fdvMax'];
         }
         if (isset($options['txns24hMin'])) {
             $params['txns_24h_min'] = $options['txns24hMin'];

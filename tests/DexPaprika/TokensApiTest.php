@@ -418,7 +418,7 @@ class TokensApiTest extends TestCase
                     'order_by' => 'fdv_usd',
                     'sort' => 'desc',
                     'volume_usd_24h_min' => 100000,
-                    'fdv_min' => 1000000,
+                    'fdv_usd_min' => 1000000,
                 ])
             )
             ->willReturn(['results' => [], 'has_next_page' => false, 'next_cursor' => null]);
