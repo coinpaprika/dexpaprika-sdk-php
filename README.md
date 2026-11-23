@@ -564,8 +564,13 @@ $filtered = $client->tokens->filterTokens('ethereum', [
 
 ### Batch Token Prices
 
+Batch prices need an API key. A free key is enough, on the default host. Without one the API answers `403` with `plan_required`, which the SDK throws as a `ClientException`. Get a free key at https://console.dexpaprika.com.
+
 ```php
 // Get prices for multiple tokens in one request (max 10)
+$config = (new Config())->setApiKey(getenv('DEXPAPRIKA_API_KEY'));
+$client = new Client(null, null, false, $config);
+
 $prices = $client->tokens->getMultiPrices('ethereum', [
     '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
     '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
