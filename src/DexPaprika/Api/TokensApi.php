@@ -417,6 +417,12 @@ class TokensApi extends BaseApi
     /**
      * Get batch prices for multiple tokens on a network
      *
+     * Needs an API key; a free key is enough, on the default host. Without one
+     * the API answers 403 with the error code `plan_required` and
+     * `required_tier` `free`, which this method throws as a ClientException
+     * (read them with getErrorCode() and getRequiredTier()). Get a free key at
+     * https://console.dexpaprika.com
+     *
      * @param string $networkId Network ID (e.g., ethereum, solana)
      * @param array<int, string> $tokens Array of token addresses (max 10)
      * @param array<string, mixed> $options Options:
