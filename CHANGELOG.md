@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.13.4] - 2026-11-23
 
 ### Changed
 - Documentation only: `getMultiPrices()` needs an API key. Since 18 November 2026 a keyless call gets `403` with `plan_required` (`required_tier` `free`), thrown as a `ClientException`. A free key is enough, on the default host. The method docblock and the README's "Batch Token Prices" example now say so, and the example builds the client with a key. Free keys: https://console.dexpaprika.com, plans: https://dexpaprika.com/api/pricing. No code changed.
